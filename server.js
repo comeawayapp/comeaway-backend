@@ -7,7 +7,7 @@ const bodyParser = require("body-parser");
 const connectDB = require("./DB/db");
 const { initializeScheduledTasks } = require("./utils/scheduler");
 const logger = require("./utils/logger");
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY || "sk_test_51RGBEYFk4Ug9XapQYBvbqpbSi02En4TgNYsNwhT70aAtMTumpR9d6jFxTWBkGW0mAUNMqaQdPGoCyPcHoZq3yXBE00B8t60mTy");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY || "");
 
 // Swagger documentation
 const swaggerUi = require('swagger-ui-express');
