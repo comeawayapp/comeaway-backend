@@ -1,6 +1,5 @@
-const stripe = require("stripe")(
-  "sk_test_51RGBEYFk4Ug9XapQYBvbqpbSi02En4TgNYsNwhT70aAtMTumpR9d6jFxTWBkGW0mAUNMqaQdPGoCyPcHoZq3yXBE00B8t60mTy"
-); // Ensure your Stripe secret key is set in the environment variables
+require("dotenv").config(); // Load environment variables
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY || ""); // Ensure your Stripe secret key is set in the environment variables
 
 /**
  * Controller to create a payment intent
