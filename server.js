@@ -148,7 +148,7 @@ app.post("/api/payment-sheet", async (req, res) => {
       paymentIntent: paymentIntent.client_secret,
       ephemeralKey: ephemeralKey.secret,
       customer: customer.id,
-      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || "pk_test_51RGBEYFk4Ug9XapQRtk2GqmXyEiwIScRwrvsLO33z4jplnWf2dSQMuAteEy6aR9zv0oqEzfucYSy1CybH9Wdwtmd00ZMc5HoFg",
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || "",
     });
   } catch (error) {
     console.error("Error creating payment sheet params:", error);

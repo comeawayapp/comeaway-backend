@@ -14,6 +14,16 @@ router.get(
   auth,
   activationCodeController.listActivationCodes
 );
+router.delete(
+  "/admin/activation-codes/:id",
+  auth,
+  activationCodeController.deleteActivationCode
+);
+router.post(
+  "/admin/activation-codes/import",
+  auth,
+  activationCodeController.importActivationCodes
+);
 
 // User route
 router.post(

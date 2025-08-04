@@ -52,7 +52,66 @@ exports.createActivationCode = async (req, res) => {
 // Admin: List/search activation codes
 exports.listActivationCodes = async (req, res) => {
   try {
-    const codes = await ActivationCode.find(req.query);
+    const { 
+      // Priority search fields (most commonly used)
+      code,           // Search by Code
+      customerName,   // Search by Name  
+      customerEmail,  // Search by Email
+      platform,       // platform: All ▼
+      redeemed,       // redeemed: All ▼
+      
+      // Additional filters
+      orderNumber, 
+      phoneNumber,
+      productName,
+      ...otherFilters 
+    } = req.query;
+    
+    // Build filter object
+    const filter = { ...otherFilters };
+    
+         // Helper function to escape regex special characters
+     const escapeRegex = (string) => {
+       return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+     };
+     
+     // Priority search fields (case-insensitive partial match)
+     if (code) {
+       filter.code = { $regex: escapeRegex(code), $options: 'i' };
+     }
+     
+     if (customerName) {
+       filter.customerName = { $regex: escapeRegex(customerName), $options: 'i' };
+     }
+     
+     if (customerEmail) {
+       filter.customerEmail = { $regex: escapeRegex(customerEmail), $options: 'i' };
+     }
+     
+     // Platform filter (exact match for dropdown)
+     if (platform && platform !== 'All') {
+       filter.platform = platform;
+     }
+     
+     // Redemption status filter (exact match for dropdown)
+     if (redeemed && redeemed !== 'All') {
+       filter.redeemed = redeemed === 'true' || redeemed === true;
+     }
+     
+     // Additional search fields (case-insensitive partial match)
+     if (orderNumber) {
+       filter.orderNumber = { $regex: escapeRegex(orderNumber), $options: 'i' };
+     }
+     
+     if (phoneNumber) {
+       filter.phoneNumber = { $regex: escapeRegex(phoneNumber), $options: 'i' };
+     }
+     
+     if (productName) {
+       filter.productName = { $regex: escapeRegex(productName), $options: 'i' };
+     }
+    
+    const codes = await ActivationCode.find(filter);
     res.json(codes);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -97,3 +156,135 @@ exports.redeemActivationCode = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// Admin: Delete activation code
+exports.deleteActivationCode = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const activationCode = await ActivationCode.findById(id);
+    if (!activationCode) {
+      return res.status(404).json({ error: "Activation code not found." });
+    }
+    
+    // Check if code has been redeemed
+    if (activationCode.redeemed) {
+      return res.status(400).json({ 
+        error: "Cannot delete redeemed activation code." 
+      });
+    }
+    
+    await ActivationCode.findByIdAndDelete(id);
+    
+    res.status(200).json({ 
+      message: "Activation code deleted successfully." 
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Admin: Bulk import activation codes
+exports.importActivationCodes = async (req, res) => {
+  try {
+    const { codes } = req.body;
+    
+    if (!Array.isArray(codes) || codes.length === 0) {
+      return res.status(400).json({ 
+        error: "Codes must be a non-empty array." 
+      });
+    }
+    
+    const results = {
+      created: [],
+      errors: [],
+      duplicates: []
+    };
+    
+    for (const codeData of codes) {
+      try {
+        const {
+          code,
+          productName,
+          orderNumber,
+          customerName,
+          customerEmail,
+          phoneNumber,
+          platform,
+          expiresIn,
+        } = codeData;
+        
+        // Validate required fields
+        if (!code || !productName || !orderNumber || !customerName || 
+            !customerEmail || !phoneNumber || !platform || !expiresIn) {
+          results.errors.push({
+            code: code || 'N/A',
+            error: "Missing required fields"
+          });
+          continue;
+        }
+        
+        // Validate code format
+        if (!/^\d{6}$/.test(code)) {
+          results.errors.push({
+            code,
+            error: "Code must be 6 digits"
+          });
+          continue;
+        }
+        
+        // Check for duplicates
+        const exists = await ActivationCode.findOne({ code });
+        if (exists) {
+          results.duplicates.push({
+            code,
+            error: "Code already exists"
+          });
+          continue;
+        }
+        
+        // Create activation code
+        const newCode = await ActivationCode.create({
+          code,
+          productName,
+          orderNumber,
+          customerName,
+          customerEmail,
+          phoneNumber,
+          platform,
+          expiresIn: new Date(expiresIn),
+        });
+        
+        // Send activation code email (non-blocking)
+        emailService
+          .sendActivationCode(
+            customerEmail,
+            customerName,
+            code,
+            productName,
+            new Date(expiresIn)
+          )
+          .catch((error) => {
+            console.error("Failed to send activation code email:", error);
+          });
+        
+        results.created.push(newCode);
+        
+      } catch (error) {
+        results.errors.push({
+          code: codeData.code || 'N/A',
+          error: error.message
+        });
+      }
+    }
+    
+    res.status(200).json({
+      message: `Import completed. Created: ${results.created.length}, Errors: ${results.errors.length}, Duplicates: ${results.duplicates.length}`,
+      results
+    });
+    
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
