@@ -1,0 +1,10 @@
+{"timestamp":"2025-08-05T08:13:45.618Z","level":"INFO","message":"Server started successfully","data":{"host":"192.168.1.154","port":"8003","environment":"development","timestamp":"2025-08-05T08:13:45.618Z"}}
+{"timestamp":"2025-08-05T08:13:52.668Z","level":"INFO","message":"Server started successfully","data":{"host":"192.168.1.154","port":"8003","environment":"development","timestamp":"2025-08-05T08:13:52.667Z"}}
+{"timestamp":"2025-08-05T08:14:13.472Z","level":"INFO","message":"Server started successfully","data":{"host":"192.168.1.154","port":"8003","environment":"development","timestamp":"2025-08-05T08:14:13.472Z"}}
+{"timestamp":"2025-08-05T08:14:35.914Z","level":"INFO","message":"Server started successfully","data":{"host":"192.168.1.154","port":"8003","environment":"development","timestamp":"2025-08-05T08:14:35.914Z"}}
+{"timestamp":"2025-08-05T08:16:47.091Z","level":"INFO","message":"Server started successfully","data":{"host":"192.168.1.154","port":"8003","environment":"development","timestamp":"2025-08-05T08:16:47.091Z"}}
+{"timestamp":"2025-08-05T08:16:55.704Z","level":"INFO","message":"Server started successfully","data":{"host":"192.168.1.154","port":"8003","environment":"development","timestamp":"2025-08-05T08:16:55.704Z"}}
+{"timestamp":"2025-08-05T08:17:09.784Z","level":"INFO","message":"Server started successfully","data":{"host":"192.168.1.154","port":"8003","environment":"development","timestamp":"2025-08-05T08:17:09.784Z"}}
+{"timestamp":"2025-08-05T08:17:23.896Z","level":"INFO","message":"Server started successfully","data":{"host":"192.168.1.154","port":"8003","environment":"development","timestamp":"2025-08-05T08:17:23.896Z"}}
+{"timestamp":"2025-08-05T08:17:36.598Z","level":"INFO","message":"Server started successfully","data":{"host":"192.168.1.154","port":"8003","environment":"development","timestamp":"2025-08-05T08:17:36.598Z"}}
+{"timestamp":"2025-08-05T08:20:01.813Z","level":"INFO","message":"Server started successfully","data":{"host":"192.168.1.154","port":"8003","environment":"development","timestamp":"2025-08-05T08:20:01.813Z"}}

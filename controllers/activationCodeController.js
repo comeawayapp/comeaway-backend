@@ -157,6 +157,88 @@ exports.redeemActivationCode = async (req, res) => {
   }
 };
 
+// Admin: Edit activation code
+exports.editActivationCode = async (req, res) => {
+  try {
+    const { id } = req.params;
+         const {
+       productName,
+       customerName,
+       customerEmail,
+       phoneNumber,
+       platform,
+       expiresIn,
+     } = req.body;
+    
+    const activationCode = await ActivationCode.findById(id);
+    if (!activationCode) {
+      return res.status(404).json({ error: "Activation code not found." });
+    }
+    
+    // Check if code has been redeemed - allow editing redeemed codes
+    // but don't allow changing critical fields after redemption
+    if (activationCode.redeemed) {
+             // For redeemed codes, only allow updating non-critical fields
+       const allowedUpdates = {
+         productName,
+         customerName,
+         customerEmail,
+         phoneNumber,
+         platform,
+       };
+      
+      // Remove undefined fields
+      Object.keys(allowedUpdates).forEach(key => {
+        if (allowedUpdates[key] === undefined) {
+          delete allowedUpdates[key];
+        }
+      });
+      
+      const updatedCode = await ActivationCode.findByIdAndUpdate(
+        id,
+        allowedUpdates,
+        { new: true }
+      );
+      
+      return res.status(200).json({
+        message: "Activation code updated successfully (redeemed code - limited fields updated).",
+        activationCode: updatedCode
+      });
+    }
+    
+         // For unredeemed codes, allow updating all fields except code
+     const updateData = {
+       productName,
+       customerName,
+       customerEmail,
+       phoneNumber,
+       platform,
+       expiresIn: expiresIn ? new Date(expiresIn) : undefined,
+     };
+    
+    // Remove undefined fields
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      }
+    });
+    
+    const updatedCode = await ActivationCode.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true }
+    );
+    
+    res.status(200).json({
+      message: "Activation code updated successfully.",
+      activationCode: updatedCode
+    });
+    
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // Admin: Delete activation code
 exports.deleteActivationCode = async (req, res) => {
   try {

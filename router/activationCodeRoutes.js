@@ -14,6 +14,11 @@ router.get(
   auth,
   activationCodeController.listActivationCodes
 );
+router.put(
+  "/admin/activation-codes/:id",
+  auth,
+  activationCodeController.editActivationCode
+);
 router.delete(
   "/admin/activation-codes/:id",
   auth,

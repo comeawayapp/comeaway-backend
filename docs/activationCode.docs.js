@@ -308,6 +308,84 @@
 /**
  * @swagger
  * /api/activation-codes/admin/activation-codes/{id}:
+ *   put:
+ *     summary: Edit activation code (Admin only)
+ *     tags: [Activation Codes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Activation code ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               productName:
+ *                 type: string
+ *                 description: Name of the product being activated
+ *               customerName:
+ *                 type: string
+ *                 description: Customer's name
+ *               customerEmail:
+ *                 type: string
+ *                 description: Customer's email address
+ *               phoneNumber:
+ *                 type: string
+ *                 description: Customer's phone number
+ *               platform:
+ *                 type: string
+ *                 description: Platform information
+ *               expiresIn:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Code expiration date (only for unredeemed codes)
+ *     responses:
+ *       200:
+ *         description: Activation code updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Activation code updated successfully."
+ *                 activationCode:
+ *                   $ref: '#/components/schemas/ActivationCode'
+ *       404:
+ *         description: Activation code not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Activation code not found."
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+
+/**
+ * @swagger
+ * /api/activation-codes/admin/activation-codes/{id}:
  *   delete:
  *     summary: Delete activation code (Admin only)
  *     tags: [Activation Codes]
