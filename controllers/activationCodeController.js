@@ -11,7 +11,6 @@ exports.createActivationCode = async (req, res) => {
       orderNumber,
       customerName,
       customerEmail,
-      phoneNumber,
       platform,
       expiresIn,
     } = req.body;
@@ -25,7 +24,6 @@ exports.createActivationCode = async (req, res) => {
       orderNumber,
       customerName,
       customerEmail,
-      phoneNumber,
       platform,
       expiresIn,
     });
@@ -62,7 +60,6 @@ exports.listActivationCodes = async (req, res) => {
       
       // Additional filters
       orderNumber, 
-      phoneNumber,
       productName,
       ...otherFilters 
     } = req.query;
@@ -101,10 +98,6 @@ exports.listActivationCodes = async (req, res) => {
      // Additional search fields (case-insensitive partial match)
      if (orderNumber) {
        filter.orderNumber = { $regex: escapeRegex(orderNumber), $options: 'i' };
-     }
-     
-     if (phoneNumber) {
-       filter.phoneNumber = { $regex: escapeRegex(phoneNumber), $options: 'i' };
      }
      
      if (productName) {
@@ -165,8 +158,7 @@ exports.editActivationCode = async (req, res) => {
        productName,
        customerName,
        customerEmail,
-       phoneNumber,
-       platform,
+      platform,
        expiresIn,
      } = req.body;
     
@@ -183,7 +175,6 @@ exports.editActivationCode = async (req, res) => {
          productName,
          customerName,
          customerEmail,
-         phoneNumber,
          platform,
        };
       
@@ -211,7 +202,6 @@ exports.editActivationCode = async (req, res) => {
        productName,
        customerName,
        customerEmail,
-       phoneNumber,
        platform,
        expiresIn: expiresIn ? new Date(expiresIn) : undefined,
      };
@@ -291,14 +281,13 @@ exports.importActivationCodes = async (req, res) => {
           orderNumber,
           customerName,
           customerEmail,
-          phoneNumber,
           platform,
           expiresIn,
         } = codeData;
         
         // Validate required fields
         if (!code || !productName || !orderNumber || !customerName || 
-            !customerEmail || !phoneNumber || !platform || !expiresIn) {
+            !customerEmail || !platform || !expiresIn) {
           results.errors.push({
             code: code || 'N/A',
             error: "Missing required fields"
@@ -332,7 +321,6 @@ exports.importActivationCodes = async (req, res) => {
           orderNumber,
           customerName,
           customerEmail,
-          phoneNumber,
           platform,
           expiresIn: new Date(expiresIn),
         });

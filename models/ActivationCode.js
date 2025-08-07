@@ -13,7 +13,6 @@ const ActivationCodeSchema = new mongoose.Schema(
     orderNumber: { type: String, required: true },
     customerName: { type: String, required: true },
     customerEmail: { type: String, required: true },
-    phoneNumber: { type: String, required: true },
     platform: { type: String, required: true },
     expiresIn: { type: Date, required: true }, // code expiry
     redeemed: { type: Boolean, default: false },

@@ -23,9 +23,6 @@
  *         customerEmail:
  *           type: string
  *           description: Customer's email address
- *         phoneNumber:
- *           type: string
- *           description: Customer's phone number
  *         platform:
  *           type: string
  *           description: Platform information
@@ -84,7 +81,6 @@
  *               - orderNumber
  *               - customerName
  *               - customerEmail
- *               - phoneNumber
  *               - platform
  *               - expiresIn
  *             properties:
@@ -196,12 +192,6 @@
  *           type: string
  *         description: Filter by order number (case-insensitive partial match)
  *         example: "ORD-001"
- *       - in: query
- *         name: phoneNumber
- *         schema:
- *           type: string
- *         description: Filter by phone number (case-insensitive partial match)
- *         example: "+1234567890"
  *       - in: query
  *         name: productName
  *         schema:
@@ -471,7 +461,6 @@
  *                     - orderNumber
  *                     - customerName
  *                     - customerEmail
- *                     - phoneNumber
  *                     - platform
  *                     - expiresIn
  *                   properties:
@@ -490,9 +479,6 @@
  *                     customerEmail:
  *                       type: string
  *                       description: Customer's email address
- *                     phoneNumber:
- *                       type: string
- *                       description: Customer's phone number
  *                     platform:
  *                       type: string
  *                       description: Platform information
