@@ -9,6 +9,16 @@ router.post(
   auth,
   activationCodeController.createActivationCode
 );
+router.post(
+  "/admin/activation-codes/generate-bulk",
+  auth,
+  activationCodeController.generateBulkCodes
+);
+router.post(
+  "/admin/activation-codes/send-to-user",
+  auth,
+  activationCodeController.sendAccessCodeToUser
+);
 router.get(
   "/admin/activation-codes",
   auth,

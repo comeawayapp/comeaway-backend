@@ -9,6 +9,7 @@ const UserSchema = new mongoose.Schema(
     phoneNumber: { type: String }, // Added for profile updates
     role: { type: String },
     status: { type: String, enum: ["active", "inactive"], default: "active" },
+    activationMode: { type: String, enum: ["code", "card"], default: null },
     resetPasswordToken: { type: String }, // Added field for OTP
     resetPasswordExpires: { type: Date }, // Added field for OTP expiration
     activeResetToken: { type: String }, // JWT reset token after OTP verification
