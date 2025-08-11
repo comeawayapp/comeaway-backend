@@ -10,7 +10,7 @@
  *           description: Auto-generated activation code ID
  *         code:
  *           type: string
- *           description: 6-digit activation code
+ *           description: 6-digit activation code (auto-generated)
  *         productName:
  *           type: string
  *           description: Name of the product being activated
@@ -58,7 +58,7 @@
  * @swagger
  * tags:
  *   name: Activation Codes
- *   description: Activation code management endpoints
+ *   description: Activation code management endpoints (Admin only)
  */
 
 /**
@@ -76,7 +76,6 @@
  *           schema:
  *             type: object
  *             required:
- *               - code
  *               - productName
  *               - orderNumber
  *               - customerName
@@ -84,9 +83,6 @@
  *               - platform
  *               - expiresIn
  *             properties:
- *               code:
- *                 type: string
- *                 description: 6-digit activation code
  *               productName:
  *                 type: string
  *                 description: Name of the product being activated
@@ -99,9 +95,6 @@
  *               customerEmail:
  *                 type: string
  *                 description: Customer's email address
- *               phoneNumber:
- *                 type: string
- *                 description: Customer's phone number
  *               platform:
  *                 type: string
  *                 description: Platform information
@@ -119,32 +112,15 @@
  *               properties:
  *                 message:
  *                   type: string
+ *                   example: "Activation code created successfully"
  *                 activationCode:
  *                   $ref: '#/components/schemas/ActivationCode'
  *       400:
- *         description: Validation error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
+ *         description: Missing required fields
  *       401:
  *         description: Unauthorized
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       403:
- *         description: Forbidden - Admin access required
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  *       500:
- *         description: Server error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
+ *         description: Internal server error
  */
 
 /**
@@ -544,4 +520,164 @@
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
+ */
+
+/**
+ * @swagger
+ * /api/activation-codes/admin/activation-codes/generate-bulk:
+ *   post:
+ *     summary: Generate bulk activation codes (Admin only)
+ *     tags: [Activation Codes]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - count
+ *               - productName
+ *               - platform
+ *               - expiresIn
+ *             properties:
+ *               count:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 1000
+ *                 description: Number of codes to generate
+ *               productName:
+ *                 type: string
+ *                 description: Name of the product for the codes
+ *               platform:
+ *                 type: string
+ *                 description: Platform information
+ *               expiresIn:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Code expiration date
+ *     responses:
+ *       201:
+ *         description: Bulk activation codes generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "100 activation codes generated successfully"
+ *                 count:
+ *                   type: integer
+ *                   description: Number of codes generated
+ *                 codes:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         description: Activation code ID
+ *                       code:
+ *                         type: string
+ *                         description: Generated activation code
+ *                       productName:
+ *                         type: string
+ *                         description: Product name
+ *                       platform:
+ *                         type: string
+ *                         description: Platform
+ *                       expiresIn:
+ *                         type: string
+ *                         format: date-time
+ *                         description: Expiration date
+ *       400:
+ *         description: Invalid request parameters
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+
+/**
+ * @swagger
+ * /api/activation-codes/admin/activation-codes/send-to-user:
+ *   post:
+ *     summary: Send access code to email address (Admin only)
+ *     tags: [Activation Codes]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - customerEmail
+ *               - productName
+ *               - platform
+ *               - expiresIn
+ *             properties:
+ *               customerEmail:
+ *                 type: string
+ *                 description: Email address to send the code to
+ *               productName:
+ *                 type: string
+ *                 description: Name of the product for the code
+ *               platform:
+ *                 type: string
+ *                 description: Platform information
+ *               expiresIn:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Code expiration date
+ *     responses:
+ *       200:
+ *         description: Access code sent successfully to user email
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Access code sent successfully to user email"
+ *                 activationCode:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       description: Activation code ID
+ *                     code:
+ *                       type: string
+ *                       description: Generated 6-digit code
+ *                     customerName:
+ *                       type: string
+ *                       description: User's full name
+ *                     customerEmail:
+ *                       type: string
+ *                       description: User's email
+ *                     productName:
+ *                       type: string
+ *                       description: Product name
+ *                     platform:
+ *                       type: string
+ *                       description: Platform
+ *                     expiresIn:
+ *                       type: string
+ *                       format: date-time
+ *                       description: Expiration date
+ *                 emailSent:
+ *                   type: boolean
+ *                   example: true
+ *       400:
+ *         description: Missing required fields
+ *       404:
+ *         description: Not found
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error or email failure
  */

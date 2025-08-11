@@ -1,12 +1,32 @@
 const ActivationCode = require("../models/ActivationCode");
 const User = require("../models/user");
 const emailService = require("../services/emailService");
+const crypto = require("crypto");
 
-// Admin: Create activation code
+// Helper function to generate unique code
+async function generateUniqueCode() {
+  let code;
+  let attempts = 0;
+  const maxAttempts = 100;
+  
+  do {
+    // Generate 6-digit numeric code
+    code = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Check if code exists
+    const exists = await ActivationCode.findOne({ code });
+    if (!exists) return code;
+    
+    attempts++;
+  } while (attempts < maxAttempts);
+  
+  throw new Error("Unable to generate unique code");
+}
+
+// Admin: Create single activation code
 exports.createActivationCode = async (req, res) => {
   try {
     const {
-      code,
       productName,
       orderNumber,
       customerName,
@@ -14,10 +34,19 @@ exports.createActivationCode = async (req, res) => {
       platform,
       expiresIn,
     } = req.body;
-    if (!/^\d{6}$/.test(code))
-      return res.status(400).json({ error: "Code must be 6 digits." });
-    const exists = await ActivationCode.findOne({ code });
-    if (exists) return res.status(400).json({ error: "Code already exists." });
+    
+    // Validate required fields
+    if (!productName || !orderNumber || !customerName || 
+        !customerEmail || !platform || !expiresIn) {
+      return res.status(400).json({ 
+        error: "Missing required fields: productName, orderNumber, customerName, customerEmail, platform, expiresIn" 
+      });
+    }
+    
+    // Generate unique activation code automatically
+    const code = await generateUniqueCode();
+    
+    // Create activation code
     const newCode = await ActivationCode.create({
       code,
       productName,
@@ -25,9 +54,9 @@ exports.createActivationCode = async (req, res) => {
       customerName,
       customerEmail,
       platform,
-      expiresIn,
+      expiresIn: new Date(expiresIn),
     });
-
+    
     // Send activation code email (non-blocking)
     emailService
       .sendActivationCode(
@@ -35,13 +64,17 @@ exports.createActivationCode = async (req, res) => {
         customerName,
         code,
         productName,
-        expiresIn
+        new Date(expiresIn)
       )
       .catch((error) => {
         console.error("Failed to send activation code email:", error);
       });
-
-    res.status(201).json(newCode);
+    
+    res.status(201).json({
+      message: "Activation code created successfully",
+      activationCode: newCode
+    });
+    
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -170,7 +203,7 @@ exports.editActivationCode = async (req, res) => {
     // Check if code has been redeemed - allow editing redeemed codes
     // but don't allow changing critical fields after redemption
     if (activationCode.redeemed) {
-             // For redeemed codes, only allow updating non-critical fields
+      // For redeemed codes, only allow updating non-critical fields
        const allowedUpdates = {
          productName,
          customerName,
@@ -270,13 +303,11 @@ exports.importActivationCodes = async (req, res) => {
     const results = {
       created: [],
       errors: [],
-      duplicates: []
     };
     
     for (const codeData of codes) {
       try {
         const {
-          code,
           productName,
           orderNumber,
           customerName,
@@ -286,33 +317,17 @@ exports.importActivationCodes = async (req, res) => {
         } = codeData;
         
         // Validate required fields
-        if (!code || !productName || !orderNumber || !customerName || 
+        if (!productName || !orderNumber || !customerName || 
             !customerEmail || !platform || !expiresIn) {
           results.errors.push({
-            code: code || 'N/A',
+            customerEmail: customerEmail || 'N/A',
             error: "Missing required fields"
           });
           continue;
         }
         
-        // Validate code format
-        if (!/^\d{6}$/.test(code)) {
-          results.errors.push({
-            code,
-            error: "Code must be 6 digits"
-          });
-          continue;
-        }
-        
-        // Check for duplicates
-        const exists = await ActivationCode.findOne({ code });
-        if (exists) {
-          results.duplicates.push({
-            code,
-            error: "Code already exists"
-          });
-          continue;
-        }
+        // Generate unique activation code automatically
+        const code = await generateUniqueCode();
         
         // Create activation code
         const newCode = await ActivationCode.create({
@@ -342,15 +357,136 @@ exports.importActivationCodes = async (req, res) => {
         
       } catch (error) {
         results.errors.push({
-          code: codeData.code || 'N/A',
+          customerEmail: codeData.customerEmail || 'N/A',
           error: error.message
         });
       }
     }
     
     res.status(200).json({
-      message: `Import completed. Created: ${results.created.length}, Errors: ${results.errors.length}, Duplicates: ${results.duplicates.length}`,
+      message: `Import completed. Created: ${results.created.length}, Errors: ${results.errors.length}`,
       results
+    });
+    
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Admin: Generate bulk activation codes (without customer data)
+exports.generateBulkCodes = async (req, res) => {
+  try {
+    const { count, productName, platform, expiresIn } = req.body;
+    
+    if (!count || !productName || !platform || !expiresIn) {
+      return res.status(400).json({ 
+        error: "Missing required fields: count, productName, platform, expiresIn" 
+      });
+    }
+    
+    if (count < 1 || count > 1000) {
+      return res.status(400).json({ 
+        error: "Count must be between 1 and 1000" 
+      });
+    }
+    
+    const activationCodes = [];
+    
+    for (let i = 0; i < count; i++) {
+      const code = await generateUniqueCode();
+      const newCode = await ActivationCode.create({
+        code,
+        productName,
+        orderNumber: `BULK-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        customerName: 'To be assigned',
+        customerEmail: 'to.be.assigned@example.com',
+        platform,
+        expiresIn: new Date(expiresIn),
+      });
+      
+      activationCodes.push(newCode);
+    }
+    
+    res.status(201).json({
+      message: `${count} activation codes generated successfully`,
+      count: activationCodes.length,
+      codes: activationCodes.map(ac => ({
+        id: ac._id,
+        code: ac.code,
+        productName: ac.productName,
+        platform: ac.platform,
+        expiresIn: ac.expiresIn
+      }))
+    });
+    
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Admin: Send access code to user email
+exports.sendAccessCodeToUser = async (req, res) => {
+  try {
+    const { customerEmail, customerName, productName, platform, expiresIn } = req.body;
+    
+    if (!customerEmail || !productName || !platform || !expiresIn) {
+      return res.status(400).json({ 
+        error: "Missing required fields: customerEmail, productName, platform, expiresIn" 
+      });
+    }
+    
+    // Validate email format
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(customerEmail)) {
+      return res.status(400).json({ 
+        error: "Invalid email format. Please provide a valid email address like: aladesiuntope@gmail.com or tope@yahoo.com" 
+      });
+    }
+    
+    // Generate unique activation code
+    const code = await generateUniqueCode();
+    
+    // Create activation code
+    const newCode = await ActivationCode.create({
+      code,
+      productName,
+      orderNumber: `EMAIL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      customerName: customerName || 'User',
+      customerEmail: customerEmail,
+      platform,
+      expiresIn: new Date(expiresIn),
+    });
+    
+    // Send activation code email
+    const emailResult = await emailService.sendActivationCode(
+      customerEmail,
+      customerName || 'User',
+      code,
+      productName,
+      new Date(expiresIn)
+    );
+    
+    if (!emailResult.success) {
+      // If email fails, delete the created code and return error
+      await ActivationCode.findByIdAndDelete(newCode._id);
+      return res.status(500).json({ 
+        error: "Failed to send email", 
+        details: emailResult.error 
+      });
+    }
+    
+    res.status(200).json({
+      message: "Access code sent successfully to user email",
+      activationCode: {
+        id: newCode._id,
+        code: newCode.code,
+        customerName: newCode.customerName,
+        customerEmail: newCode.customerEmail,
+        productName: newCode.productName,
+        platform: newCode.platform,
+        expiresIn: newCode.expiresIn
+      },
+      emailSent: true
     });
     
   } catch (err) {
