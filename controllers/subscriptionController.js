@@ -271,11 +271,17 @@ exports.getMySubscription = async (req, res) => {
     const isExpired =
       user.proExpiresAt ? currentDate > user.proExpiresAt : true;
 
+    // Determine user type and activation method
+    const userType = (user.isPro && !isExpired) ? "Pro" : "Standard";
+    const activationMethod = user.activationMode || "None";
+    
     res.status(200).json({
       isPro: user.isPro && !isExpired,
       proExpiresAt: user.proExpiresAt,
       subscription: subscription,
       isExpired: isExpired,
+      userType: userType,
+      activationMethod: activationMethod,
     });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });

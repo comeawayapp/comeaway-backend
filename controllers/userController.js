@@ -9,7 +9,10 @@ const { logProfileUpdate } = require("../utils/profileLogger");
 async function checkAndUpdateProStatus(userDoc) {
   // Defensive: ensure proExpiresAt is a valid date
   let expired = false;
+  let activationCodeExpired = false;
+  
   if (userDoc.isPro) {
+    // Check subscription expiry
     if (
       !userDoc.proExpiresAt ||
       isNaN(new Date(userDoc.proExpiresAt).getTime())
@@ -24,11 +27,24 @@ async function checkAndUpdateProStatus(userDoc) {
         expired = true;
       }
     }
+    
+    // Check activation code expiry if user was activated by code
+    if (userDoc.activationMode === 'code' && userDoc.proExpiresAt) {
+      const now = new Date();
+      const codeExpiry = new Date(userDoc.proExpiresAt);
+      if (codeExpiry.getTime() < now.getTime()) {
+        activationCodeExpired = true;
+      }
+    }
   }
-  if (userDoc.isPro && expired) {
+  
+  // Downgrade to standard user if either subscription or activation code expired
+  if (userDoc.isPro && (expired || activationCodeExpired)) {
     userDoc.isPro = false;
+    userDoc.activationMode = null; // Clear activation mode when expired
     await userDoc.save();
   }
+  
   return userDoc;
 }
 
@@ -77,6 +93,10 @@ exports.login = async (req, res) => {
     const token = jwt.sign({ _id: gotuser._id }, process.env.JWT_SECRET, {
       expiresIn: "24h",
     });
+    // Determine user type and activation method
+    const userType = gotuser.isPro ? "Pro" : "Standard";
+    const activationMethod = gotuser.activationMode || "None";
+    
     return res.status(200).json({
       message: "Login successful",
       token,
@@ -90,6 +110,8 @@ exports.login = async (req, res) => {
         isEmailVerified: gotuser.isEmailVerified,
         isPro: gotuser.isPro,
         proExpiresAt: gotuser.proExpiresAt,
+        userType: userType,
+        activationMethod: activationMethod,
       },
     });
 
@@ -418,31 +440,178 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
-// Get All Users
+// Get All Users with Search and Filtering
 exports.getAllUsers = async (req, res) => {
   try {
-    // Only get active users (exclude soft-deleted users)
-    const users = await user.find({ 
+    const { query, type, activationMethod } = req.query;
+    
+    // Build the base filter for active users
+    let filter = {
       $or: [
         { status: "active" },
         { status: { $exists: false } },
         { deletedAt: { $exists: false } }
       ]
-    }).select("-password");
-    res.status(200).json(users);
+    };
+    
+    // Add search query filter
+    if (query) {
+      const searchRegex = new RegExp(query, 'i'); // Case-insensitive search
+      filter.$and = [{
+        $or: [
+          { firstname: searchRegex },
+          { lastname: searchRegex },
+          { email: searchRegex }
+        ]
+      }];
+    }
+    
+    // Add user type filter
+    if (type) {
+      if (!['standard', 'pro'].includes(type.toLowerCase())) {
+        return res.status(400).json({
+          message: "Invalid user type. Use 'standard' or 'pro'",
+          allowedValues: ["standard", "pro"]
+        });
+      }
+      
+      if (type.toLowerCase() === 'pro') {
+        filter.isPro = true;
+      } else {
+        filter.isPro = false;
+      }
+    }
+    
+    // Add activation method filter
+    if (activationMethod) {
+      if (!['code', 'card', 'none'].includes(activationMethod.toLowerCase())) {
+        return res.status(400).json({
+          message: "Invalid activation method. Use 'code', 'card', or 'none'",
+          allowedValues: ["code", "card", "none"]
+        });
+      }
+      
+      if (activationMethod.toLowerCase() === 'none') {
+        filter.$or = filter.$or || [];
+        filter.$or.push({ activationMode: { $exists: false } });
+        filter.$or.push({ activationMode: null });
+      } else {
+        filter.activationMode = activationMethod.toLowerCase();
+      }
+    }
+    
+    // Execute the query
+    const users = await user.find(filter).select("-password");
+    
+    // Add user type and activation method to each user
+    const usersWithType = users.map(userDoc => {
+      const userType = userDoc.isPro ? "Pro" : "Standard";
+      const activationMethod = userDoc.activationMode || "None";
+      
+      return {
+        ...userDoc.toObject(),
+        userType: userType,
+        activationMethod: activationMethod
+      };
+    });
+    
+    // Return response with search/filter info
+    res.status(200).json({
+      users: usersWithType,
+      total: usersWithType.length,
+      filters: {
+        query: query || null,
+        type: type || null,
+        activationMethod: activationMethod || null
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-// Get Soft-Deleted Users (Admin only)
+// Get Soft-Deleted Users with Search and Filtering (Admin only)
 exports.getSoftDeletedUsers = async (req, res) => {
   try {
-    const softDeletedUsers = await user.find({ 
+    const { query, type, activationMethod } = req.query;
+    
+    // Build the base filter for soft-deleted users
+    let filter = {
       status: "inactive",
       deletedAt: { $exists: true }
-    }).select("-password");
-    res.status(200).json(softDeletedUsers);
+    };
+    
+    // Add search query filter
+    if (query) {
+      const searchRegex = new RegExp(query, 'i'); // Case-insensitive search
+      filter.$and = [{
+        $or: [
+          { firstname: searchRegex },
+          { lastname: searchRegex },
+          { email: searchRegex }
+        ]
+      }];
+    }
+    
+    // Add user type filter
+    if (type) {
+      if (!['standard', 'pro'].includes(type.toLowerCase())) {
+        return res.status(400).json({
+          message: "Invalid user type. Use 'standard' or 'pro'",
+          allowedValues: ["standard", "pro"]
+        });
+      }
+      
+      if (type.toLowerCase() === 'pro') {
+        filter.isPro = true;
+      } else {
+        filter.isPro = false;
+      }
+    }
+    
+    // Add activation method filter
+    if (activationMethod) {
+      if (!['code', 'card', 'none'].includes(activationMethod.toLowerCase())) {
+        return res.status(400).json({
+          message: "Invalid activation method. Use 'code', 'card', or 'none'",
+          allowedValues: ["code", "card", "none"]
+        });
+      }
+      
+      if (activationMethod.toLowerCase() === 'none') {
+        filter.$or = filter.$or || [];
+        filter.$or.push({ activationMode: { $exists: false } });
+        filter.$or.push({ activationMode: null });
+      } else {
+        filter.activationMode = activationMethod.toLowerCase();
+      }
+    }
+    
+    // Execute the query
+    const softDeletedUsers = await user.find(filter).select("-password");
+    
+    // Add user type and activation method to each user
+    const usersWithType = softDeletedUsers.map(userDoc => {
+      const userType = userDoc.isPro ? "Pro" : "Standard";
+      const activationMethod = userDoc.activationMode || "None";
+      
+      return {
+        ...userDoc.toObject(),
+        userType: userType,
+        activationMethod: activationMethod
+      };
+    });
+    
+    // Return response with search/filter info
+    res.status(200).json({
+      users: usersWithType,
+      total: usersWithType.length,
+      filters: {
+        query: query || null,
+        type: type || null,
+        activationMethod: activationMethod || null
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -507,7 +676,18 @@ exports.getUserById = async (req, res) => {
     if (!gotuser) {
       return res.status(404).json({ message: "User not found" });
     }
-    res.status(200).json(gotuser);
+    
+    // Add user type and activation method
+    const userType = gotuser.isPro ? "Pro" : "Standard";
+    const activationMethod = gotuser.activationMode || "None";
+    
+    const userWithType = {
+      ...gotuser.toObject(),
+      userType: userType,
+      activationMethod: activationMethod
+    };
+    
+    res.status(200).json(userWithType);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -845,6 +1025,10 @@ exports.getCurrentUserProfile = async (req, res) => {
 
     // Check and update Pro status
     const updatedUser = await checkAndUpdateProStatus(gotuser);
+    
+    // Determine user type and activation method
+    const userType = updatedUser.isPro ? "Pro" : "Standard";
+    const activationMethod = updatedUser.activationMode || "None";
 
     res.status(200).json({
       success: true,
@@ -860,6 +1044,8 @@ exports.getCurrentUserProfile = async (req, res) => {
         isEmailVerified: updatedUser.isEmailVerified,
         isPro: updatedUser.isPro,
         proExpiresAt: updatedUser.proExpiresAt,
+        userType: userType,
+        activationMethod: activationMethod,
         createdAt: updatedUser.createdAt,
         updatedAt: updatedUser.updatedAt,
       },
