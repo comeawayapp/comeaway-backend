@@ -248,9 +248,26 @@
  *               properties:
  *                 message:
  *                   type: string
- *                 user:
- *                   type: object
- *                   description: Updated user information
+ *                   example: "Subscription activated!"
+ *                 expiresAt:
+ *                   type: string
+ *                   format: date-time
+ *                   description: When the subscription expires
+ *                 customerDetailsUpdated:
+ *                   type: boolean
+ *                   description: Whether customer details were updated to match logged-in user
+ *                 originalCustomerName:
+ *                   type: string
+ *                   description: Original customer name on the activation code
+ *                 originalCustomerEmail:
+ *                   type: string
+ *                   description: Original customer email on the activation code
+ *                 updatedCustomerName:
+ *                   type: string
+ *                   description: Updated customer name (logged-in user's full name)
+ *                 updatedCustomerEmail:
+ *                   type: string
+ *                   description: Updated customer email (logged-in user's email)
  *       400:
  *         description: Invalid or expired code
  *         content:
@@ -259,6 +276,18 @@
  *               $ref: '#/components/schemas/Error'
  *       401:
  *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: User not found or invalid activation code
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       409:
+ *         description: Code already redeemed
  *         content:
  *           application/json:
  *             schema:

@@ -35,7 +35,8 @@ module.exports = async function (req, res, next) {
     }
 
     // Check if user account is deactivated
-    if (currentUser.status === "inactive" || currentUser.status === "deleted" ) {
+    logger.info('User account status', currentUser);
+    if (currentUser?.status === "inactive" || currentUser?.status === "deleted" ) {
       logger.error('User account is deactivated', { 
         userId: decoded._id,
         status: currentUser.status,

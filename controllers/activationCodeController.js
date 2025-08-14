@@ -149,6 +149,13 @@ exports.redeemActivationCode = async (req, res) => {
   try {
     const { code } = req.body;
     const userId = req.user._id;
+    
+    // Get the logged-in user's details
+    const loggedInUser = await User.findById(userId);
+    if (!loggedInUser) {
+      return res.status(404).json({ error: "User not found." });
+    }
+    
     const activation = await ActivationCode.findOne({ code });
     if (!activation)
       return res.status(404).json({ error: "Invalid activation code." });
@@ -156,27 +163,52 @@ exports.redeemActivationCode = async (req, res) => {
       return res.status(400).json({ error: "Code already redeemed." });
     if (activation.expiresIn < new Date())
       return res.status(400).json({ error: "Activation code expired." });
-    // Atomically redeem
+    
+    // Check if the activation code's customer details match the logged-in user
+    const loggedInUserFullName = `${loggedInUser.firstname} ${loggedInUser.lastname}`;
+    const customerDetailsMatch = 
+      activation.customerName === loggedInUserFullName && 
+      activation.customerEmail === loggedInUser.email;
+    
+    // Prepare update data for activation code
+    const updateData = {
+      redeemed: true,
+      redeemedBy: userId,
+      redeemedAt: new Date(),
+      subscriptionExpiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
+    };
+    
+    // If customer details don't match, update them with logged-in user's details
+    if (!customerDetailsMatch) {
+      updateData.customerName = loggedInUserFullName;
+      updateData.customerEmail = loggedInUser.email;
+    }
+    
+    // Atomically redeem and update customer details if needed
     const updated = await ActivationCode.findOneAndUpdate(
       { code, redeemed: false },
-      {
-        redeemed: true,
-        redeemedBy: userId,
-        redeemedAt: new Date(),
-        subscriptionExpiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
-      },
+      updateData,
       { new: true }
     );
+    
     if (!updated)
       return res.status(409).json({ error: "Code already redeemed." });
-    // Update user
+    
+    // Update user with Pro status and activation mode
     await User.findByIdAndUpdate(userId, {
       isPro: true,
       proExpiresAt: updated.subscriptionExpiresAt,
+      activationMode: "code",
     });
+    
     res.status(200).json({
       message: "Subscription activated!",
       expiresAt: updated.subscriptionExpiresAt,
+      customerDetailsUpdated: !customerDetailsMatch,
+      originalCustomerName: activation.customerName,
+      originalCustomerEmail: activation.customerEmail,
+      updatedCustomerName: loggedInUserFullName,
+      updatedCustomerEmail: loggedInUser.email,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -439,54 +471,56 @@ exports.sendAccessCodeToUser = async (req, res) => {
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(customerEmail)) {
       return res.status(400).json({ 
-        error: "Invalid email format. Please provide a valid email address like: aladesiuntope@gmail.com or tope@yahoo.com" 
+        error: "Invalid email format. Please provide a valid email address "
       });
     }
     
-    // Generate unique activation code
-    const code = await generateUniqueCode();
-    
-    // Create activation code
-    const newCode = await ActivationCode.create({
-      code,
-      productName,
-      orderNumber: `EMAIL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      customerName: customerName || 'User',
+    // Search for existing activation codes for this email
+    const existingCodes = await ActivationCode.find({ 
       customerEmail: customerEmail,
-      platform,
-      expiresIn: new Date(expiresIn),
+      redeemed: false, // Only unredeemed codes
+      productName: productName,
+      expiresIn: { $gt: new Date() } // Only non-expired codes
     });
     
-    // Send activation code email
-    const emailResult = await emailService.sendActivationCode(
+    if (existingCodes.length === 0) {
+      // No existing codes found - return error
+      return res.status(404).json({ 
+        error: "No activation codes found for this email address",
+        customerEmail: customerEmail,
+        message: "Please ensure the user has a valid activation code before requesting email delivery"
+      });
+    }
+    
+    // Found existing codes - send ONE email with ALL codes
+    const emailResult = await emailService.sendMultipleActivationCodes(
       customerEmail,
-      customerName || 'User',
-      code,
-      productName,
-      new Date(expiresIn)
+      existingCodes[0]?.customerName || customerName || 'User',
+      existingCodes,
+      productName
     );
     
     if (!emailResult.success) {
-      // If email fails, delete the created code and return error
-      await ActivationCode.findByIdAndDelete(newCode._id);
       return res.status(500).json({ 
         error: "Failed to send email", 
-        details: emailResult.error 
+        details: emailResult.error,
+        codesFound: existingCodes.length
       });
     }
     
     res.status(200).json({
-      message: "Access code sent successfully to user email",
-      activationCode: {
-        id: newCode._id,
-        code: newCode.code,
-        customerName: newCode.customerName,
-        customerEmail: newCode.customerEmail,
-        productName: newCode.productName,
-        platform: newCode.platform,
-        expiresIn: newCode.expiresIn
-      },
-      emailSent: true
+      message: `Found ${existingCodes.length} activation code(s) and sent them in one email successfully`,
+      existingCodes: existingCodes.map(code => ({
+        id: code._id,
+        code: code.code,
+        customerName: code.customerName,
+        customerEmail: code.customerEmail,
+        productName: code.productName,
+        platform: code.platform,
+        expiresIn: code.expiresIn
+      })),
+      emailSent: true,
+      codesSent: existingCodes.length
     });
     
   } catch (err) {

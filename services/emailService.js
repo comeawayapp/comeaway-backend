@@ -531,6 +531,106 @@ The Comeaway Team
   }
 
   /**
+   * Send multiple activation codes in one email
+   * @param {string} email - Recipient email
+   * @param {string} customerName - Customer name
+   * @param {Array} activationCodes - Array of activation code objects
+   * @param {string} productName - Product name
+   * @returns {Promise<Object>} - Send result
+   */
+  async sendMultipleActivationCodes(
+    email,
+    customerName,
+    activationCodes,
+    productName
+  ) {
+    const subject = "Your Comeaway Activation Codes";
+    
+    // Generate HTML table for multiple codes
+    const tableRows = activationCodes.map(code => {
+      const formattedDate = new Date(code.expiresIn).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+      
+      return `
+        <tr style="border-bottom: 1px solid #e0e0e0;">
+          <td style="padding: 12px; font-size: 18px; font-weight: bold; color: #007bff; letter-spacing: 2px;">${code.code}</td>
+          <td style="padding: 12px; color: #333;">${code.productName}</td>
+          <td style="padding: 12px; color: #333;">${code.platform}</td>
+          <td style="padding: 12px; color: #666;">${formattedDate}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const codesHtml = `
+      <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <thead>
+          <tr style="background: #f8f9fa;">
+            <th style="padding: 15px; text-align: left; color: #333; font-weight: 600; border-bottom: 2px solid #dee2e6;">Code</th>
+            <th style="padding: 15px; text-align: left; color: #333; font-weight: 600; border-bottom: 2px solid #dee2e6;">Product</th>
+            <th style="padding: 15px; text-align: left; color: #333; font-weight: 600; border-bottom: 2px solid #dee2e6;">Platform</th>
+            <th style="padding: 15px; text-align: left; color: #333; font-weight: 600; border-bottom: 2px solid #dee2e6;">Expires</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+        </tbody>
+      </table>
+    `;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Multiple Activation Codes</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+            .container { background: #f9f9f9; padding: 30px; border-radius: 10px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .instructions { background: #e3f2fd; padding: 20px; border-radius: 5px; margin: 20px 0; }
+            .codes-container { margin: 20px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>🎵 Your Comeaway Activation Codes</h1>
+            </div>
+            
+            <p>Hello ${customerName},</p>
+            
+            <p>Here are your activation codes for <strong>${productName}</strong>:</p>
+            
+            <div class="codes-container" style="text-align: center; margin: 20px 0;">
+              ${codesHtml}
+            </div>
+            
+            <div class="instructions">
+            
+            <p><strong>Important:</strong> Each code can only be used once. Use them before they expire.</p>
+            
+            <p>If you have any issues redeeming your codes, please <a href="mailto:support@comeaway.com">contact our support team</a>.</p>
+            
+            <p>Thank you for choosing Comeaway!</p>
+            
+            <p>Best regards,<br>The Comeaway Team</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    return this.sendEmail({
+      to: email,
+      subject,
+      html,
+    });
+  }
+
+  /**
    * Send notification email to admin
    * @param {string} subject - Email subject
    * @param {string} message - Email message
