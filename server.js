@@ -101,6 +101,9 @@ app.use("/api/narrators", require("./router/narratorRoutes")); // ✅ fixed here
 app.use("/api/activation-codes", require("./router/activationCodeRoutes"));
 app.use("/api/badges", require("./router/badgeRoutes")); // Registering the new badge progress route
 app.use("/api/email", require("./router/emailRoutes")); // Email management routes
+app.use("/api/price", require("./router/priceRoutes")); // Price management routes
+app.use("/api/discount", require("./router/discountRoutes")); // Discount management routes
+app.use("/api/price-discount-assignments", require("./router/priceDiscountAssignmentRoutes")); // Price-discount assignment routes
 // app.use("/webhook", require("./router/webhookRoutes")); // Webhook routes (should be before other middleware)
 
 // Payment Sheet Route
