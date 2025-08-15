@@ -68,7 +68,7 @@ exports.getSubscriptionByUserId = async (req, res) => {
     }
     const subscription = await Subscription.find({ userId: userId });
     if (!subscription || !subscription.length) {
-      return res.status(404).json({ message: "Subscription not found" });
+      return res.status(200).json({ message: "No subscription found", subscription: [] });
     }
     res.status(200).json(subscription);
   } catch (error) {

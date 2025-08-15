@@ -10,19 +10,36 @@
  *           description: Auto-generated subscription ID
  *         userId:
  *           type: string
- *           description: User ID
+ *           description: User ID (automatically set from JWT token)
+ *         customer:
+ *           type: string
+ *           description: Stripe customer ID
+ *         name:
+ *           type: string
+ *           description: Customer name
  *         plan:
  *           type: string
- *           description: Subscription plan
- *         status:
- *           type: string
- *           description: Subscription status
+ *           enum: [monthly, annual]
+ *           description: Subscription plan type
  *         startDate:
  *           type: string
  *           format: date-time
+ *           description: Subscription start date (auto-generated)
  *         endDate:
  *           type: string
  *           format: date-time
+ *           description: Subscription end date (calculated based on plan)
+ *         status:
+ *           type: string
+ *           enum: [active, inactive]
+ *           description: Subscription status
+ *       required:
+ *         - userId
+ *         - customer
+ *         - name
+ *         - plan
+ *         - endDate
+ *         - status
  */
 
 /**
@@ -48,12 +65,21 @@
  *             type: object
  *             required:
  *               - plan
+ *               - customer
+ *               - name
  *             properties:
  *               plan:
  *                 type: string
- *                 description: Subscription plan name
+ *                 enum: [monthly, annual]
+ *                 description: Subscription plan type (monthly or annual)
+ *               customer:
+ *                 type: string
+ *                 description: Stripe customer ID
+ *               name:
+ *                 type: string
+ *                 description: Customer name
  *     responses:
- *       200:
+ *       201:
  *         description: Subscription created successfully
  *         content:
  *           application/json:
@@ -62,14 +88,22 @@
  *               properties:
  *                 message:
  *                   type: string
+ *                   example: "Subscription created successfully"
  *                 subscription:
  *                   $ref: '#/components/schemas/Subscription'
+ *                 success:
+ *                   type: boolean
+ *                   example: true
  *       400:
- *         description: Validation error
+ *         description: Validation error - Missing required fields
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "plan, customer, name, and userId are required"
  *       401:
  *         description: Unauthorized
  *         content:
