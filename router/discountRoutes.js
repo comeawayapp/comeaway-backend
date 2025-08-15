@@ -42,10 +42,4 @@ router.delete(
   discountController.deleteDiscount
 );
 
-// Apply discount to price
-router.post(
-  "/apply",
-  discountController.applyDiscount
-);
-
 module.exports = router;

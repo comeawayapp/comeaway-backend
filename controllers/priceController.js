@@ -156,16 +156,37 @@ exports.getPriceWithAvailableDiscounts = async (req, res) => {
     // Filter out assignments where the discount is no longer valid
     const validAssignments = assignments.filter(assignment => assignment.discountId);
     
-    // Map to the expected format
-    const availableDiscounts = validAssignments.map(assignment => ({
-      id: assignment.discountId._id,
-      name: assignment.discountId.name,
-      description: assignment.discountId.description,
-      discountType: assignment.discountId.discountType,
-      discountValue: assignment.discountId.discountValue,
-      couponCode: assignment.discountId.couponCode,
-      expiresAt: assignment.discountId.endDate
-    }));
+    // Map to the expected format with discounted prices
+    const availableDiscounts = validAssignments.map(assignment => {
+      const discount = assignment.discountId;
+      let discountedPrice = price.basePrice;
+      let savings = 0;
+      
+      // Calculate the discounted price
+      if (discount.discountType === 'percentage') {
+        savings = price.basePrice * (discount.discountValue / 100);
+        discountedPrice = price.basePrice - savings;
+      } else {
+        savings = Math.min(discount.discountValue, price.basePrice);
+        discountedPrice = price.basePrice - savings;
+      }
+      
+      // Ensure price doesn't go below 0
+      discountedPrice = Math.max(0, discountedPrice);
+      
+      return {
+        id: discount._id,
+        name: discount.name,
+        description: discount.description,
+        discountType: discount.discountType,
+        discountValue: discount.discountValue,
+        couponCode: discount.couponCode,
+        expiresAt: discount.endDate,
+        originalPrice: price.basePrice,
+        discountedPrice: Math.round(discountedPrice * 100) / 100, // Round to 2 decimal places
+        savings: Math.round(savings * 100) / 100
+      };
+    });
     
     res.status(200).json({
       message: "Price with available discounts retrieved successfully",

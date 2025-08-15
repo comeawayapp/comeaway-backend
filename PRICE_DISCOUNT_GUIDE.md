@@ -109,13 +109,15 @@ Verify that everything is working correctly:
 # Get price with available discounts
 GET /api/price/plan/monthly/with-available-discounts
 
-# Apply discount manually
+# Apply discount using coupon code
 POST /api/price/apply-discount
 {
   "planType": "monthly",
   "couponCode": "A7B2K9X1"
 }
 ```
+
+**Important:** Use `/api/price/apply-discount` (not `/api/discount/apply`). This endpoint automatically looks up the base price and applies the discount.
 
 ---
 
@@ -213,8 +215,8 @@ All dates use date-only format (no time component):
 
 ### For Business Users (Public)
 - `GET /api/price/all` - View all plan prices
-- `GET /api/price/plan/monthly/with-available-discounts` - View monthly price with assigned discounts only
-- `POST /api/price/apply-discount` - Apply discount using coupon code
+- `GET /api/price/plan/monthly/with-available-discounts` - View monthly price with assigned discounts and calculated prices
+- `POST /api/price/apply-discount` - Apply discount using coupon code (automatically looks up base price)
 - `GET /api/discount/active` - View current active discounts
 
 ### For Administrators (Protected)
@@ -252,7 +254,10 @@ All dates use date-only format (no time component):
         "discountType": "percentage",
         "discountValue": 20,
         "couponCode": "A7B2K9X1",
-        "expiresAt": "2024-08-31"
+        "expiresAt": "2024-08-31",
+        "originalPrice": 9.99,
+        "discountedPrice": 7.99,
+        "savings": 2.00
       }
     ]
   }

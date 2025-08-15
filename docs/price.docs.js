@@ -495,7 +495,10 @@
  *                         "discountType": "percentage",
  *                         "discountValue": 20,
  *                         "couponCode": "A7B2K9X1",
- *                         "expiresAt": "2024-12-31"
+ *                         "expiresAt": "2024-12-31",
+ *                         "originalPrice": 9.99,
+ *                         "discountedPrice": 7.99,
+ *                         "savings": 2.00
  *                       },
  *                       {
  *                         "id": "64f8a1b2c3d4e5f678901241",
@@ -504,7 +507,10 @@
  *                         "discountType": "percentage",
  *                         "discountValue": 15,
  *                         "couponCode": "K9M3P8Q2",
- *                         "expiresAt": "2024-08-31"
+ *                         "expiresAt": "2024-08-31",
+ *                         "originalPrice": 9.99,
+ *                         "discountedPrice": 8.49,
+ *                         "savings": 1.50
  *                       },
  *                       {
  *                         "id": "64f8a1b2c3d4e5f678901242",
@@ -513,7 +519,10 @@
  *                         "discountType": "percentage",
  *                         "discountValue": 20,
  *                         "couponCode": "X5N1R7T4",
- *                         "expiresAt": "2024-12-31"
+ *                         "expiresAt": "2024-12-31",
+ *                         "originalPrice": 9.99,
+ *                         "discountedPrice": 7.99,
+ *                         "savings": 2.00
  *                       }
  *                     ],
  *                     createdAt: "2024-01-15T10:30:00.000Z",
@@ -529,7 +538,7 @@
  * @swagger
  * /api/price/apply-discount:
  *   post:
- *     summary: Apply discount to price manually using coupon code
+ *     summary: Apply discount to price using coupon code (automatically looks up base price)
  *     tags: [Pricing]
  *     requestBody:
  *       required: true
@@ -547,7 +556,7 @@
  *                 description: Plan type to apply discount to
  *               couponCode:
  *                 type: string
- *                 description: Coupon code to apply
+ *                 description: Coupon code to apply (system automatically looks up base price)
  *     responses:
  *       200:
  *         description: Discount applied successfully
@@ -560,10 +569,13 @@
  *                   type: string
  *                 originalPrice:
  *                   type: number
+ *                   description: Base price for the plan (automatically looked up)
  *                 finalPrice:
  *                   type: number
+ *                   description: Price after discount applied
  *                 savings:
  *                   type: number
+ *                   description: Amount saved with discount
  *                 discount:
  *                   type: object
  *                   properties:

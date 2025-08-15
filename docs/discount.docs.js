@@ -323,61 +323,14 @@
 
 /**
  * @swagger
- * /api/discount/apply:
- *   post:
- *     summary: Apply discount to a price
- *     tags: [Discounts]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - discountId
- *               - basePrice
- *             properties:
- *               discountId:
- *                 type: string
- *                 description: ID of the discount to apply
- *               basePrice:
- *                 type: number
- *                 description: Original price before discount
- *               planType:
- *                 type: string
- *                 enum: [monthly, annual, daily]
- *                 description: Plan type for validation
- *     responses:
- *       200:
- *         description: Discount applied successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 originalPrice:
- *                   type: number
- *                 finalPrice:
- *                   type: number
- *                 savings:
- *                   type: number
- *                 discount:
- *                   type: object
- *                   properties:
- *                     name:
- *                       type: string
- *                     description:
- *                       type: string
- *                     discountType:
- *                       type: string
- *                     discountValue:
- *                       type: number
- *       400:
- *         description: Bad request
- *       404:
- *         description: Discount not found
- *       500:
- *         description: Server error
+ * Note:
+ *   description: |
+ *     **Important:** Discounts are applied through the price endpoint, not the discount endpoint.
+ *     
+ *     To apply a discount, use:
+ *     - **Endpoint:** `POST /api/price/apply-discount`
+ *     - **Body:** `{ "planType": "monthly", "couponCode": "A7B2K9X1" }`
+ *     
+ *     The system automatically looks up the base price and applies the discount.
+ *     No need to provide basePrice or discountId manually.
  */
