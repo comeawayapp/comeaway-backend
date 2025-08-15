@@ -33,5 +33,10 @@ router.post(
   authMiddleware,
   subscriptionController.checkExpiredSubscriptions
 );
+router.post(
+  "/admin/create-subscription-for-user",
+  authMiddleware,
+  subscriptionController.createSubscriptionForUser
+);
 
 module.exports = router;

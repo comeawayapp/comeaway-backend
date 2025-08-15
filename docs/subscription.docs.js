@@ -286,3 +286,94 @@
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
+
+/**
+ * @swagger
+ * /api/subscription/admin/create-subscription-for-user:
+ *   post:
+ *     summary: Admin - Create subscription for a user
+ *     tags: [Subscriptions]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userEmail
+ *               - plan
+ *             properties:
+ *               userEmail:
+ *                 type: string
+ *                 format: email
+ *                 description: Email of the user to create subscription for
+ *               plan:
+ *                 type: string
+ *                 enum: [monthly, annual]
+ *                 description: Subscription plan type
+ *               duration:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 12
+ *                 default: 1
+ *                 description: Number of months/years for the subscription
+ *     responses:
+ *       201:
+ *         description: Subscription created successfully for user
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 subscription:
+ *                   $ref: '#/components/schemas/Subscription'
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     isPro:
+ *                       type: boolean
+ *                     proExpiresAt:
+ *                       type: string
+ *                       format: date-time
+ *                 success:
+ *                   type: boolean
+ *       400:
+ *         description: Bad request - validation error or user already has active subscription
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ */

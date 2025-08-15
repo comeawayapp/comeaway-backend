@@ -10,8 +10,12 @@ async function generateUniqueCode() {
   const maxAttempts = 100;
   
   do {
-    // Generate 6-digit numeric code
-    code = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate 8-character alphanumeric code
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    code = '';
+    for (let i = 0; i < 8; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
     
     // Check if code exists
     const exists = await ActivationCode.findOne({ code });
@@ -499,6 +503,12 @@ exports.sendAccessCodeToUser = async (req, res) => {
       existingCodes,
       productName
     );
+    
+    existingCodes.forEach(code => {
+      code.accessCodeSentAt = new Date();
+      code.accessCodeSentTo = customerEmail;
+      code.save();
+    });
     
     if (!emailResult.success) {
       return res.status(500).json({ 

@@ -5,13 +5,14 @@ const emailService = require("../services/emailService");
 // Create a new subscription - SIMPLIFIED for mobile
 exports.createSubscription = async (req, res) => {
   try {
-    const { plan, customer, name } = req.body;
+    const { plan } = req.body;
     const userId = req.user && req.user._id;
+    const user = await User.findById(userId);
 
-    if (!plan || !customer || !name || !userId) {
+    if (!plan || !user) {
       return res
         .status(400)
-        .json({ message: "plan, customer, name, and userId are required" });
+        .json({ message: "plan and auth token are required" });
     }
     if (!["monthly", "annual"].includes(plan)) {
       return res.status(400).json({ message: "Invalid subscription plan" });
@@ -28,8 +29,8 @@ exports.createSubscription = async (req, res) => {
     // Create new subscription with active status
     const newSubscription = new Subscription({
       userId,
-      customer,
-      name,
+      customer: user.stripeCustomerId,
+      name: user.firstname + " " + user.lastname,
       plan,
       endDate,
       status: "active", // This is the key - status is active
@@ -56,6 +57,118 @@ exports.createSubscription = async (req, res) => {
   } catch (error) {
     console.error("❌ Subscription creation error:", error);
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+/**
+ * Admin: Create subscription for a user
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+exports.createSubscriptionForUser = async (req, res) => {
+  try {
+    const { userEmail, plan, duration } = req.body;
+    
+    // Validate required fields
+    if (!userEmail || !plan) {
+      return res.status(400).json({ 
+        message: "userEmail and plan are required" 
+      });
+    }
+    
+    // Validate plan
+    if (!["monthly", "annual", "daily"].includes(plan)) {
+      return res.status(400).json({ 
+        message: "Invalid subscription plan. Must be 'monthly' or 'annual' or 'daily'" 
+      });
+    }
+    
+    // Validate duration (optional, defaults to 1)
+    const subscriptionDuration = duration && !isNaN(duration) ? parseInt(duration) : 1;
+    if (subscriptionDuration < 1 || subscriptionDuration > 12) {
+      return res.status(400).json({ 
+        message: "Duration must be between 1 and 12" 
+      });
+    }
+    
+    // Find user by email
+    const user = await User.findOne({ email: userEmail });
+    if (!user) {
+      return res.status(404).json({ 
+        message: "User not found with the provided email" 
+      });
+    }
+    
+    // Check if user already has an active subscription
+    const existingActiveSubscription = await Subscription.findOne({
+      userId: user._id,
+      status: "active"
+    });
+    
+    if (existingActiveSubscription) {
+      return res.status(400).json({ 
+        message: "User already has an active subscription",
+        existingSubscription: existingActiveSubscription
+      });
+    }
+    
+    // Calculate dates
+    const startDate = new Date();
+    let endDate = new Date();
+    
+    if (plan === "monthly") {
+      endDate.setMonth(endDate.getMonth() + subscriptionDuration);
+    } else if (plan === "annual") {
+      endDate.setFullYear(endDate.getFullYear() + subscriptionDuration);
+    }else if (plan === "daily") {
+      endDate.setDate(endDate.getDate() + subscriptionDuration);
+    }
+    
+    // Create new subscription
+    const newSubscription = new Subscription({
+      userId: user._id,
+      customer: user.stripeCustomerId || `admin_created_${Date.now()}`,
+      name: `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'Admin Created User',
+      plan,
+      startDate,
+      endDate,
+      status: "active",
+      createdBy: "admin",
+      adminNotes: `Created by admin for ${subscriptionDuration} ${plan === 'monthly' ? 'month(s)' : 'year(s)'}`
+    });
+    
+    await newSubscription.save();
+    
+    // Update user's pro status
+    await User.findByIdAndUpdate(user._id, {
+      isPro: true,
+      proExpiresAt: endDate,
+      proUpdatedBy: "admin"
+    });
+    
+    console.log(
+      `✅ Admin created subscription - User ${user.email} is now Pro until ${endDate}`
+    );
+    
+    res.status(201).json({
+      message: "Subscription created successfully for user",
+      subscription: newSubscription,
+      user: {
+        _id: user._id,
+        email: user.email,
+        name: `${user.firstname || ''} ${user.lastname || ''}`.trim(),
+        isPro: true,
+        proExpiresAt: endDate
+      },
+      success: true
+    });
+    
+  } catch (error) {
+    console.error("❌ Admin subscription creation error:", error);
+    res.status(500).json({ 
+      message: "Server error", 
+      error: error.message 
+    });
   }
 };
 
