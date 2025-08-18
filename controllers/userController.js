@@ -617,7 +617,7 @@ exports.getSoftDeletedUsers = async (req, res) => {
   }
 };
 
-// Update User Status
+// Admin Update User Status
 exports.updateUserStatus = async (req, res) => {
   try {
     const { status } = req.body;
@@ -660,6 +660,54 @@ exports.updateUserStatus = async (req, res) => {
         currentStatus: status,
       },
       action: status === "inactive" ? "USER_DEACTIVATED" : "USER_ACTIVATED",
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+// Admin Update User Status
+exports.updatePlanStatus = async (req, res) => {
+  try {
+    const { planStatus } = req.body;
+    if (!planStatus) {  
+      return res.status(400).json({
+        message: "Plan Status is required",
+        allowedValues: ["pro", "standard"],
+      });
+    }
+
+    // Validate status value
+    if (!["pro", "standard"].includes(planStatus)) {
+      return res.status(400).json({
+        message: "Invalid plan status value",
+        allowedValues: ["pro", "standard"],
+      });
+    }
+
+    if (!req.params.id || !req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ message: "Invalid or missing user id" });
+    }
+
+    const gotuser = await user.findById(req.params.id);
+    if (!gotuser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const previousPlanStatus = gotuser.isPro;
+    gotuser.isPro = planStatus === "pro" ? true : false;
+    await gotuser.save();
+
+    res.status(200).json({
+      message: "User status updated successfully",
+      user: {
+        id: gotuser._id,
+        email: gotuser.email,
+        firstname: gotuser.firstname,
+        lastname: gotuser.lastname,
+        previousPlanStatus: previousPlanStatus,
+        currentPlanStatus: planStatus,
+      },
+        action: planStatus === "pro" ? "USER_ACTIVATED" : "USER_DEACTIVATED",
     });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });

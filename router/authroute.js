@@ -66,6 +66,13 @@ router.put("/admin/activate/:id", authMiddleware, userController.activateUser);
 // Admin: Restore soft-deleted user
 router.put("/admin/restore/:id", authMiddleware, userController.restoreUser);
 
+// Admin: Update user plan status (pro/standard)
+router.put(
+  "/admin/update-plan-status/:id",
+  authMiddleware,
+  userController.updatePlanStatus
+);
+
 // Account deletion request
 router.post("/request-deletion", userController.requestDeletion);
 
