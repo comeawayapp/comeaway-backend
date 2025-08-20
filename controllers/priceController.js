@@ -1,10 +1,10 @@
 const Price = require("../models/Price");
 const Discount = require("../models/Discount");
-
+const PriceDiscountAssignment = require("../models/PriceDiscountAssignment");
 // Create a new price
 exports.createPrice = async (req, res) => {
   try {
-    const { planType, basePrice, currency, description, features } = req.body;
+    const { planType, basePrice, currency, description } = req.body;
     
     if (!planType || !basePrice) {
       return res.status(400).json({ 
@@ -24,8 +24,7 @@ exports.createPrice = async (req, res) => {
       planType,
       basePrice,
       currency: currency || 'USD',
-      description,
-      features: features || []
+      description
     });
     
     await newPrice.save();
@@ -137,8 +136,6 @@ exports.getPriceWithAvailableDiscounts = async (req, res) => {
       });
     }
     
-    // Import the PriceDiscountAssignment model
-    const PriceDiscountAssignment = require("../models/PriceDiscountAssignment");
     
     // Find only the discounts that have been specifically assigned to this price
     const assignments = await PriceDiscountAssignment.find({

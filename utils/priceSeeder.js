@@ -19,32 +19,19 @@ const seedPrices = async () => {
         basePrice: 9.99,
         currency: 'USD',
         description: 'Monthly Pro Plan',
-        features: [
-          { name: 'Unlimited Access', description: 'Access to all premium sounds', included: true },
-          { name: 'High Quality', description: 'Stream in high quality audio', included: true },
-          { name: 'Offline Downloads', description: 'Download sounds for offline use', included: true }
-        ]
       },
       {
         planType: 'annual',
         basePrice: 99.99,
         currency: 'USD',
         description: 'Annual Pro Plan (Save 17%)',
-        features: [
-          { name: 'Unlimited Access', description: 'Access to all premium sounds', included: true },
-          { name: 'High Quality', description: 'Stream in high quality audio', included: true },
-          { name: 'Offline Downloads', description: 'Download sounds for offline use', included: true },
-          { name: 'Priority Support', description: 'Get priority customer support', included: true }
-        ]
+       
       },
       {
         planType: 'daily',
         basePrice: 0.99,
         currency: 'USD',
         description: 'Daily Pro Plan',
-        features: [
-          { name: 'Unlimited Access', description: 'Access to all premium sounds for 24 hours', included: true }
-        ]
       }
     ];
     

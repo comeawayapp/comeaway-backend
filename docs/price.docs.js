@@ -31,18 +31,6 @@
  *         description:
  *           type: string
  *           description: Description of the plan
- *         features:
- *           type: array
- *           items:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               description:
- *                 type: string
- *               included:
- *                 type: boolean
- *                 default: true
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -87,17 +75,6 @@
  *                 enum: [USD, EUR, GBP, NGN]
  *               description:
  *                 type: string
- *               features:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     name:
- *                       type: string
- *                     description:
- *                       type: string
- *                     included:
- *                       type: boolean
  *           examples:
  *             monthly_plan:
  *               summary: Monthly Plan Example
@@ -106,33 +83,6 @@
  *                 basePrice: 9.99
  *                 currency: "USD"
  *                 description: "Monthly Pro Plan - Perfect for casual listeners"
- *                 features: [
- *                   {
- *                     "name": "Unlimited Sound Access",
- *                     "description": "Access to all 50,000+ premium sounds on ComeAway",
- *                     "included": true
- *                   },
- *                   {
- *                     "name": "High Quality Audio",
- *                     "description": "Stream in crystal clear 320kbps quality",
- *                     "included": true
- *                   },
- *                   {
- *                     "name": "Offline Downloads",
- *                     "description": "Download up to 100 sounds for offline listening",
- *                     "included": true
- *                   },
- *                   {
- *                     "name": "Ad-Free Experience",
- *                     "description": "Enjoy uninterrupted listening without ads",
- *                     "included": true
- *                   },
- *                   {
- *                     "name": "Priority Support",
- *                     "description": "Get customer support within 24 hours",
- *                     "included": false
- *                   }
- *                 ]
  *             annual_plan:
  *               summary: Annual Plan Example
  *               value:
@@ -140,43 +90,6 @@
  *                 basePrice: 99.99
  *                 currency: "USD"
  *                 description: "Annual Pro Plan - Best value for music lovers"
- *                 features: [
- *                   {
- *                     "name": "Unlimited Sound Access",
- *                     "description": "Access to all 50,000+ premium sounds on ComeAway",
- *                     "included": true
- *                   },
- *                   {
- *                     "name": "High Quality Audio",
- *                     "description": "Stream in crystal clear 320kbps quality",
- *                     "included": true
- *                   },
- *                   {
- *                     "name": "Unlimited Offline Downloads",
- *                     "description": "Download unlimited sounds for offline listening",
- *                     "included": true
- *                   },
- *                   {
- *                     "name": "Ad-Free Experience",
- *                     "description": "Enjoy uninterrupted listening without ads",
- *                     "included": true
- *                   },
- *                   {
- *                     "name": "Priority Support",
- *                     "description": "Get customer support within 4 hours",
- *                     "included": true
- *                   },
- *                   {
- *                     "name": "Exclusive Content",
- *                     "description": "Access to premium-only sound collections and early releases",
- *                     "included": true
- *                   },
- *                   {
- *                     "name": "Family Sharing",
- *                     "description": "Share your account with up to 3 family members",
- *                     "included": true
- *                   }
- *                 ]
  *             daily_plan:
  *               summary: Daily Plan Example
  *               value:
@@ -184,28 +97,6 @@
  *                 basePrice: 0.99
  *                 currency: "USD"
  *                 description: "Daily Pro Plan - Try before you buy"
- *                 features: [
- *                   {
- *                     "name": "Unlimited Sound Access",
- *                     "description": "Access to all 50,000+ premium sounds on ComeAway for 24 hours",
- *                     "included": true
- *                   },
- *                   {
- *                     "name": "High Quality Audio",
- *                     "description": "Stream in crystal clear 320kbps quality",
- *                     "included": true
- *                   },
- *                   {
- *                     "name": "Ad-Free Experience",
- *                     "description": "Enjoy uninterrupted listening without ads",
- *                     "included": true
- *                   },
- *                   {
- *                     "name": "Offline Downloads",
- *                     "description": "Download up to 10 sounds for offline listening",
- *                     "included": false
- *                   }
- *                 ]
  *     responses:
  *       201:
  *         description: Price created successfully
@@ -223,33 +114,6 @@
  *                     currency: "USD",
  *                     description: "Monthly Pro Plan - Perfect for casual listeners",
  *                     isActive: true,
- *                     features: [
- *                       {
- *                         "name": "Unlimited Sound Access",
- *                         "description": "Access to all 50,000+ premium sounds on ComeAway",
- *                         "included": true
- *                       },
- *                       {
- *                         "name": "High Quality Audio",
- *                         "description": "Stream in crystal clear 320kbps quality",
- *                         "included": true
- *                       },
- *                       {
- *                         "name": "Offline Downloads",
- *                         "description": "Download up to 100 sounds for offline listening",
- *                         "included": true
- *                       },
- *                       {
- *                         "name": "Ad-Free Experience",
- *                         "description": "Enjoy uninterrupted listening without ads",
- *                         "included": true
- *                       },
- *                       {
- *                         "name": "Priority Support",
- *                         "description": "Get customer support within 24 hours",
- *                         "included": false
- *                       }
- *                     ],
  *                     createdAt: "2024-01-15T10:30:00.000Z",
  *                     updatedAt: "2024-01-15T10:30:00.000Z"
  *                   }
@@ -283,33 +147,7 @@
  *                       currency: "USD",
  *                       description: "Monthly Pro Plan - Perfect for casual listeners",
  *                       isActive: true,
- *                       features: [
- *                         {
- *                           "name": "Unlimited Sound Access",
- *                           "description": "Access to all 50,000+ premium sounds on ComeAway",
- *                           "included": true
- *                         },
- *                         {
- *                           "name": "High Quality Audio",
- *                           "description": "Stream in crystal clear 320kbps quality",
- *                           "included": true
- *                         },
- *                         {
- *                           "name": "Offline Downloads",
- *                           "description": "Download up to 100 sounds for offline listening",
- *                           "included": true
- *                         },
- *                         {
- *                           "name": "Ad-Free Experience",
- *                           "description": "Enjoy uninterrupted listening without ads",
- *                           "included": true
- *                         },
- *                         {
- *                           "name": "Priority Support",
- *                           "description": "Get customer support within 24 hours",
- *                           "included": false
- *                         }
- *                       ],
+
  *                       createdAt: "2024-01-15T10:30:00.000Z",
  *                       updatedAt: "2024-01-15T10:30:00.000Z"
  *                     },
@@ -320,43 +158,6 @@
  *                       currency: "USD",
  *                       description: "Annual Pro Plan - Best value for music lovers",
  *                       isActive: true,
- *                       features: [
- *                         {
- *                           "name": "Unlimited Sound Access",
- *                           "description": "Access to all 50,000+ premium sounds on ComeAway",
- *                           "included": true
- *                         },
- *                         {
- *                           "name": "High Quality Audio",
- *                           "description": "Stream in crystal clear 320kbps quality",
- *                           "included": true
- *                         },
- *                         {
- *                           "name": "Unlimited Offline Downloads",
- *                           "description": "Download unlimited sounds for offline listening",
- *                           "included": true
- *                         },
- *                         {
- *                           "name": "Ad-Free Experience",
- *                           "description": "Enjoy uninterrupted listening without ads",
- *                           "included": true
- *                         },
- *                         {
- *                           "name": "Priority Support",
- *                           "description": "Get customer support within 4 hours",
- *                           "included": true
- *                         },
- *                         {
- *                           "name": "Exclusive Content",
- *                           "description": "Access to premium-only sound collections and early releases",
- *                           "included": true
- *                         },
- *                         {
- *                           "name": "Family Sharing",
- *                           "description": "Share your account with up to 3 family members",
- *                           "included": true
- *                         }
- *                       ],
  *                       createdAt: "2024-01-15T10:30:00.000Z",
  *                       updatedAt: "2024-01-15T10:30:00.000Z"
  *                     },
@@ -367,28 +168,6 @@
  *                       currency: "USD",
  *                       description: "Daily Pro Plan - Try before you buy",
  *                       isActive: true,
- *                       features: [
- *                         {
- *                           "name": "Unlimited Sound Access",
- *                           "description": "Access to all 50,000+ premium sounds on ComeAway for 24 hours",
- *                           "included": true
- *                         },
- *                         {
- *                           "name": "High Quality Audio",
- *                           "description": "Stream in crystal clear 320kbps quality",
- *                           "included": true
- *                         },
- *                         {
- *                           "name": "Ad-Free Experience",
- *                           "description": "Enjoy uninterrupted listening without ads",
- *                           "included": true
- *                         },
- *                         {
- *                           "name": "Offline Downloads",
- *                           "description": "Download up to 10 sounds for offline listening",
- *                           "included": false
- *                         }
- *                       ],
  *                       createdAt: "2024-01-15T10:30:00.000Z",
  *                       updatedAt: "2024-01-15T10:30:00.000Z"
  *                     }
@@ -460,33 +239,6 @@
  *                     currency: "USD",
  *                     description: "Monthly Pro Plan - Perfect for casual listeners",
  *                     isActive: true,
- *                     features: [
- *                       {
- *                         "name": "Unlimited Sound Access",
- *                         "description": "Access to all 50,000+ premium sounds on ComeAway",
- *                         "included": true
- *                       },
- *                       {
- *                         "name": "High Quality Audio",
- *                         "description": "Stream in crystal clear 320kbps quality",
- *                         "included": true
- *                       },
- *                       {
- *                         "name": "Offline Downloads",
- *                         "description": "Download up to 100 sounds for offline listening",
- *                         "included": true
- *                       },
- *                       {
- *                         "name": "Ad-Free Experience",
- *                         "description": "Enjoy uninterrupted listening without ads",
- *                         "included": true
- *                       },
- *                       {
- *                         "name": "Priority Support",
- *                         "description": "Get customer support within 24 hours",
- *                         "included": false
- *                       }
- *                     ],
  *                     availableDiscounts: [
  *                       {
  *                         "id": "64f8a1b2c3d4e5f678901240",
@@ -632,17 +384,7 @@
  *                 enum: [USD, EUR, GBP, NGN]
  *               description:
  *                 type: string
- *               features:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     name:
- *                       type: string
- *                     description:
- *                       type: string
- *                     included:
- *                       type: boolean
+
  *     responses:
  *       200:
  *         description: Price updated successfully

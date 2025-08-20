@@ -26,15 +26,7 @@ const PriceSchema = new mongoose.Schema(
     description: {
       type: String,
       default: ''
-    },
-    features: [{
-      name: String,
-      description: String,
-      included: {
-        type: Boolean,
-        default: true
-      }
-    }]
+    }
   },
   { timestamps: true }
 );
