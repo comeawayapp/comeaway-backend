@@ -114,6 +114,32 @@ exports.getAssignmentsForPrice = async (req, res) => {
       isActive: true
     }).populate('discountId');
     
+    // If no assignments exist for this price, return the price details instead
+    if (assignments.length === 0) {
+      const price = await Price.findById(priceId);
+      
+      if (!price) {
+        return res.status(404).json({ 
+          message: "Price not found" 
+        });
+      }
+      
+      return res.status(200).json({
+        message: "No discount assignments found for this price. Here are the price details:",
+        assignments: [],
+        price: {
+          _id: price._id,
+          planType: price.planType,
+          basePrice: price.basePrice,
+          currency: price.currency,
+          description: price.description,
+          isActive: price.isActive,
+          createdAt: price.createdAt,
+          updatedAt: price.updatedAt
+        }
+      });
+    }
+    
     res.status(200).json({
       message: "Assignments retrieved successfully",
       assignments
@@ -134,6 +160,26 @@ exports.getAllAssignments = async (req, res) => {
     const assignments = await PriceDiscountAssignment.find({
       isActive: true
     }).populate('priceId discountId');
+    
+    // If no assignments exist, return all available prices instead
+    if (assignments.length === 0) {
+      const allPrices = await Price.find({ isActive: true });
+      
+      return res.status(200).json({
+        message: "No discount assignments found. Here are all available prices:",
+        assignments: [],
+        availablePrices: allPrices.map(price => ({
+          _id: price._id,
+          planType: price.planType,
+          basePrice: price.basePrice,
+          currency: price.currency,
+          description: price.description,
+          isActive: price.isActive,
+          createdAt: price.createdAt,
+          updatedAt: price.updatedAt
+        }))
+      });
+    }
     
     res.status(200).json({
       message: "All assignments retrieved successfully",

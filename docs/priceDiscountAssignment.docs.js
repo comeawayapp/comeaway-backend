@@ -126,7 +126,7 @@
  * @swagger
  * /api/price-discount-assignments/price/{priceId}:
  *   get:
- *     summary: Get all active assignments for a specific price
+ *     summary: Get all active assignments for a specific price (or price details if no assignments exist)
  *     tags: [Price-Discount Assignments]
  *     parameters:
  *       - in: path
@@ -137,18 +137,95 @@
  *         description: ID of the price
  *     responses:
  *       200:
- *         description: Assignments retrieved successfully
+ *         description: Assignments retrieved successfully, or price details if no assignments exist
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 assignments:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/PriceDiscountAssignment'
+ *               oneOf:
+ *                 - type: object
+ *                   description: When assignments exist for the price
+ *                   properties:
+ *                     message:
+ *                       type: string
+ *                       example: "Assignments retrieved successfully"
+ *                     assignments:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/PriceDiscountAssignment'
+ *                 - type: object
+ *                   description: When no assignments exist for the price
+ *                   properties:
+ *                     message:
+ *                       type: string
+ *                       example: "No discount assignments found for this price. Here are the price details:"
+ *                     assignments:
+ *                       type: array
+ *                       items: []
+ *                       description: Empty array when no assignments exist
+ *                     price:
+ *                       type: object
+ *                       properties:
+ *                         _id:
+ *                           type: string
+ *                           description: Price ID
+ *                         planType:
+ *                           type: string
+ *                           enum: [monthly, annual, daily]
+ *                           description: Subscription plan type
+ *                         basePrice:
+ *                           type: number
+ *                           description: Base price for the plan
+ *                         currency:
+ *                           type: string
+ *                           description: Currency for the price
+ *                         description:
+ *                           type: string
+ *                           description: Description of the plan
+ *                         isActive:
+ *                           type: boolean
+ *                           description: Whether the price is currently active
+ *                         createdAt:
+ *                           type: string
+ *                           format: date-time
+ *                         updatedAt:
+ *                           type: string
+ *                           format: date-time
+ *             examples:
+ *               with_assignments:
+ *                 summary: When assignments exist for the price
+ *                 value:
+ *                   message: "Assignments retrieved successfully"
+ *                   assignments: [
+ *                     {
+ *                       _id: "64f8a1b2c3d4e5f678901234",
+ *                       priceId: "64f8a1b2c3d4e5f678901235",
+ *                       discountId: {
+ *                         _id: "64f8a1b2c3d4e5f678901236",
+ *                         name: "Summer Sale",
+ *                         discountType: "percentage",
+ *                         discountValue: 20
+ *                       },
+ *                       isActive: true,
+ *                       assignedAt: "2024-01-15T10:30:00.000Z"
+ *                     }
+ *                   ]
+ *               no_assignments:
+ *                 summary: When no assignments exist for the price
+ *                 value:
+ *                   message: "No discount assignments found for this price. Here are the price details:"
+ *                   assignments: []
+ *                   price: {
+ *                     _id: "64f8a1b2c3d4e5f678901235",
+ *                     planType: "monthly",
+ *                     basePrice: 9.99,
+ *                     currency: "USD",
+ *                     description: "Monthly Pro Plan - Perfect for casual listeners",
+ *                     isActive: true,
+ *                     createdAt: "2024-01-15T10:30:00.000Z",
+ *                     updatedAt: "2024-01-15T10:30:00.000Z"
+ *                   }
+ *       404:
+ *         description: Price not found
  *       500:
  *         description: Server error
  */
@@ -157,22 +234,117 @@
  * @swagger
  * /api/price-discount-assignments/all:
  *   get:
- *     summary: Get all active assignments
+ *     summary: Get all active assignments (or all available prices if no assignments exist)
  *     tags: [Price-Discount Assignments]
  *     responses:
  *       200:
- *         description: All assignments retrieved successfully
+ *         description: All assignments retrieved successfully, or all available prices if no assignments exist
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 assignments:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/PriceDiscountAssignment'
+ *               oneOf:
+ *                 - type: object
+ *                   description: When assignments exist
+ *                   properties:
+ *                     message:
+ *                       type: string
+ *                       example: "All assignments retrieved successfully"
+ *                     assignments:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/PriceDiscountAssignment'
+ *                 - type: object
+ *                   description: When no assignments exist
+ *                   properties:
+ *                     message:
+ *                       type: string
+ *                       example: "No discount assignments found. Here are all available prices:"
+ *                     assignments:
+ *                       type: array
+ *                       items: []
+ *                       description: Empty array when no assignments exist
+ *                     availablePrices:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             description: Price ID
+ *                           planType:
+ *                             type: string
+ *                             enum: [monthly, annual, daily]
+ *                             description: Subscription plan type
+ *                           basePrice:
+ *                             type: number
+ *                             description: Base price for the plan
+ *                           currency:
+ *                             type: string
+ *                             description: Currency for the price
+ *                           description:
+ *                             type: string
+ *                             description: Description of the plan
+ *                           isActive:
+ *                             type: boolean
+ *                             description: Whether the price is currently active
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *                           updatedAt:
+ *                             type: string
+ *                             format: date-time
+ *             examples:
+ *               with_assignments:
+ *                 summary: When assignments exist
+ *                 value:
+ *                   message: "All assignments retrieved successfully"
+ *                   assignments: [
+ *                     {
+ *                       _id: "64f8a1b2c3d4e5f678901234",
+ *                       priceId: {
+ *                         _id: "64f8a1b2c3d4e5f678901235",
+ *                         planType: "monthly",
+ *                         basePrice: 9.99,
+ *                         currency: "USD",
+ *                         description: "Monthly Pro Plan"
+ *                       },
+ *                       discountId: {
+ *                         _id: "64f8a1b2c3d4e5f678901236",
+ *                         name: "Summer Sale",
+ *                         discountType: "percentage",
+ *                         discountValue: 20
+ *                       },
+ *                       isActive: true,
+ *                       assignedAt: "2024-01-15T10:30:00.000Z"
+ *                     }
+ *                   ]
+ *               no_assignments:
+ *                 summary: When no assignments exist
+ *                 value:
+ *                   message: "No discount assignments found. Here are all available prices:"
+ *                   assignments: []
+ *                   availablePrices: [
+ *                     {
+ *                       _id: "64f8a1b2c3d4e5f678901235",
+ *                       planType: "monthly",
+ *                       basePrice: 9.99,
+ *                       currency: "USD",
+ *                       description: "Monthly Pro Plan - Perfect for casual listeners",
+ *                       isActive: true,
+ *                       createdAt: "2024-01-15T10:30:00.000Z",
+ *                       updatedAt: "2024-01-15T10:30:00.000Z"
+ *                     },
+ *                     {
+ *                       _id: "64f8a1b2c3d4e5f678901236",
+ *                       planType: "annual",
+ *                       basePrice: 99.99,
+ *                       currency: "USD",
+ *                       description: "Annual Pro Plan - Best value for music lovers",
+ *                       isActive: true,
+ *                       createdAt: "2024-01-15T10:30:00.000Z",
+ *                       updatedAt: "2024-01-15T10:30:00.000Z"
+ *                     }
+ *                   ]
  *       500:
  *         description: Server error
  */
