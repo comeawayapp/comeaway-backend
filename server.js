@@ -8,6 +8,7 @@ const connectDB = require("./DB/db");
 const { initializeScheduledTasks } = require("./utils/scheduler");
 const logger = require("./utils/logger");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY || "");
+const PriceDiscountAssignment = require("./models/PriceDiscountAssignment");
 
 // Swagger documentation
 const swaggerUi = require('swagger-ui-express');
@@ -109,11 +110,16 @@ app.use("/api/price-discount-assignments", require("./router/priceDiscountAssign
 // Payment Sheet Route
 app.post("/api/payment-sheet", async (req, res) => {
   try {
-    const amount = req.body.amount;
-    const { plan, userId } = req.body; // Get plan and userId from request
+    const { plan, priceId, userId } = req.body; // Get plan and userId from request
 
     // Convert amount to cents
-    const amountInCents = Math.round(amount * 100);
+    const price = await PriceDiscountAssignment.findOne({ priceId: priceId });
+
+    if (!price) {
+      return res.status(404).json({ error: "Price not found" });
+    }
+
+    const amountInCents = Math.round(parseFloat(price.price) * 100);
 
     // Create a new customer
     const customer = await stripe.customers.create();

@@ -17,7 +17,7 @@ const conditionalBodyParsing = (req, res, next) => {
 
   // Otherwise, parse the body normally
   const express = require('express');
-  express.json({ limit: "50mb" })(req, res, (err) => {
+  express.json({ limit: "100mb" })(req, res, (err) => {
     if (err) {
       logger.error('JSON parsing error', { 
         error: err.message, 
@@ -43,7 +43,7 @@ const conditionalUrlEncoded = (req, res, next) => {
 
   // Otherwise, parse URL encoded data normally
   const express = require('express');
-  express.urlencoded({ limit: "50mb", extended: true })(req, res, (err) => {
+  express.urlencoded({ limit: "100mb", extended: true })(req, res, (err) => {
     if (err) {
       logger.error('URL encoding parsing error', { 
         error: err.message, 
