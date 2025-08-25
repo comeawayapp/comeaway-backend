@@ -41,4 +41,20 @@ router.put(
   priceController.updatePrice
 );
 
+// Simple: Assign discount to price (Admin only)
+router.post(
+  "/assign-discount",
+  authMiddleware,
+  priceController.assignDiscount
+);
+
+// Simple: Remove discount from price (Admin only)
+router.delete(
+  "/remove-discount/:priceId",
+  authMiddleware,
+  priceController.removeDiscount
+);
+
+
+
 module.exports = router;

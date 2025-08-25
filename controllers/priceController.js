@@ -1,6 +1,5 @@
 const Price = require("../models/Price");
 const Discount = require("../models/Discount");
-const PriceDiscountAssignment = require("../models/PriceDiscountAssignment");
 // Create a new price
 exports.createPrice = async (req, res) => {
   try {
@@ -125,72 +124,77 @@ exports.getPriceWithAvailableDiscounts = async (req, res) => {
   try {
     const { planType } = req.params;
     
-    const price = await Price.findOne({ 
-      planType, 
-      isActive: true 
+    // const price = await Price.findOne({ 
+    //   planType, 
+    //   isActive: true 
+    // });
+
+    const prices = await Price.find({
+      isActive: true
     });
+
+    console.log(prices);
     
-    if (!price) {
+    if (!prices.length) {
       return res.status(404).json({ 
         message: `Price not found for ${planType} plan` 
       });
     }
     
     
-    // Find only the discounts that have been specifically assigned to this price
-    const assignments = await PriceDiscountAssignment.find({
-      priceId: price._id,
-      isActive: true
-    }).populate({
-      path: 'discountId',
-      match: {
-        isActive: true,
-        startDate: { $lte: new Date() },
-        endDate: { $gte: new Date() }
+        // Process each price individually
+    let computedPrices = [];
+    for (const price of prices) {
+      // Check if this specific price has an assigned discount
+      let availableDiscounts = [];
+      
+      if (price.discountId) {
+        const discount = await Discount.findById(price.discountId);
+        
+        if (discount && discount.isActive && 
+            new Date() >= new Date(discount.startDate) && 
+            new Date() <= new Date(discount.endDate)) {
+          
+          let discountedPrice = price.basePrice;
+          let savings = 0;
+          
+          // Calculate the discounted price
+          if (discount.discountType === 'percentage') {
+            savings = price.basePrice * (discount.discountValue / 100);
+            discountedPrice = price.basePrice - savings;
+          } else {
+            savings = Math.min(discount.discountValue, price.basePrice);
+            discountedPrice = price.basePrice - savings;
+          }
+          
+          // Ensure price doesn't go below 0
+          discountedPrice = Math.max(0, discountedPrice);
+          
+          availableDiscounts.push({
+            id: discount._id,
+            name: discount.name,
+            description: discount.description,
+            discountType: discount.discountType,
+            discountValue: discount.discountValue,
+            couponCode: discount.couponCode,
+            expiresAt: discount.endDate,
+            originalPrice: price.basePrice,
+            discountedPrice: Math.round(discountedPrice * 100) / 100, // Round to 2 decimal places
+            savings: Math.round(savings * 100) / 100
+          });
+        }
       }
-    });
-    
-    // Filter out assignments where the discount is no longer valid
-    const validAssignments = assignments.filter(assignment => assignment.discountId);
-    
-    // Map to the expected format with discounted prices
-    const availableDiscounts = validAssignments.map(assignment => {
-      const discount = assignment.discountId;
-      let discountedPrice = price.basePrice;
-      let savings = 0;
       
-      // Calculate the discounted price
-      if (discount.discountType === 'percentage') {
-        savings = price.basePrice * (discount.discountValue / 100);
-        discountedPrice = price.basePrice - savings;
-      } else {
-        savings = Math.min(discount.discountValue, price.basePrice);
-        discountedPrice = price.basePrice - savings;
-      }
-      
-      // Ensure price doesn't go below 0
-      discountedPrice = Math.max(0, discountedPrice);
-      
-      return {
-        id: discount._id,
-        name: discount.name,
-        description: discount.description,
-        discountType: discount.discountType,
-        discountValue: discount.discountValue,
-        couponCode: discount.couponCode,
-        expiresAt: discount.endDate,
-        originalPrice: price.basePrice,
-        discountedPrice: Math.round(discountedPrice * 100) / 100, // Round to 2 decimal places
-        savings: Math.round(savings * 100) / 100
-      };
-    });
+      // Add this price with its own availableDiscounts
+      computedPrices.push({
+        ...price.toObject(),
+        availableDiscounts
+      });
+    }
     
     res.status(200).json({
       message: "Price with available discounts retrieved successfully",
-      price: {
-        ...price.toObject(),
-        availableDiscounts
-      }
+      prices: computedPrices
     });
     
   } catch (error) {
@@ -301,3 +305,77 @@ exports.applyDiscountToPrice = async (req, res) => {
     });
   }
 };
+
+// Simple: Assign discount to price (only one discount per price)
+exports.assignDiscount = async (req, res) => {
+  try {
+    const { priceId, discountId } = req.body;
+    
+    if (!priceId || !discountId) {
+      return res.status(400).json({ 
+        message: "priceId and discountId are required" 
+      });
+    }
+    
+    // Find the price
+    const price = await Price.findById(priceId);
+    if (!price) {
+      return res.status(404).json({ message: "Price not found" });
+    }
+    
+    // Find the discount
+    const discount = await Discount.findById(discountId);
+    if (!discount) {
+      return res.status(404).json({ message: "Discount not found" });
+    }
+    
+    // Check if discount is active
+    if (!discount.isActive) {
+      return res.status(400).json({ message: "Discount is not active" });
+    }
+    
+    // Assign the discount (this replaces any existing discount)
+    price.discountId = discountId;
+    await price.save();
+    
+    res.status(200).json({
+      message: "Discount assigned successfully",
+      price: price
+    });
+    
+  } catch (error) {
+    res.status(500).json({ 
+      message: "Server error", 
+      error: error.message 
+    });
+  }
+};
+
+// Simple: Remove discount from price
+exports.removeDiscount = async (req, res) => {
+  try {
+    const { priceId } = req.params;
+    
+    const price = await Price.findById(priceId);
+    if (!price) {
+      return res.status(404).json({ message: "Price not found" });
+    }
+    
+    // Remove the discount
+    price.discountId = null;
+    await price.save();
+    
+    res.status(200).json({
+      message: "Discount removed successfully",
+      price: price
+    });
+    
+  } catch (error) {
+    res.status(500).json({ 
+      message: "Server error", 
+      error: error.message 
+    });
+  }
+};
+
+

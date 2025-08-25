@@ -80,7 +80,7 @@
 
 /**
  * @swagger
- * /api/discount/create:
+ * /api/discounts/create:
  *   post:
  *     summary: Create a new discount
  *     tags: [Discounts]
@@ -143,7 +143,7 @@
 
 /**
  * @swagger
- * /api/discount/all:
+ * /api/discounts/all:
  *   get:
  *     summary: Get all discounts
  *     tags: [Discounts]
@@ -167,7 +167,7 @@
 
 /**
  * @swagger
- * /api/discount/active:
+ * /api/discounts/active:
  *   get:
  *     summary: Get active discounts
  *     tags: [Discounts]
@@ -198,7 +198,7 @@
 
 /**
  * @swagger
- * /api/discount/{id}:
+ * /api/discounts/{id}:
  *   get:
  *     summary: Get discount by ID
  *     tags: [Discounts]
@@ -229,7 +229,7 @@
 
 /**
  * @swagger
- * /api/discount/{id}:
+ * /api/discounts/{id}:
  *   put:
  *     summary: Update discount
  *     tags: [Discounts]
@@ -290,7 +290,7 @@
 
 /**
  * @swagger
- * /api/discount/{id}:
+ * /api/discounts/{id}:
  *   delete:
  *     summary: Delete discount
  *     tags: [Discounts]
@@ -328,7 +328,7 @@
  *     **Important:** Discounts are applied through the price endpoint, not the discount endpoint.
  *     
  *     To apply a discount, use:
- *     - **Endpoint:** `POST /api/price/apply-discount`
+ *     - **Endpoint:** `POST /api/prices/apply-discount`
  *     - **Body:** `{ "planType": "monthly", "couponCode": "A7B2K9X1" }`
  *     
  *     The system automatically looks up the base price and applies the discount.

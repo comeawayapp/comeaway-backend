@@ -48,7 +48,7 @@
 
 /**
  * @swagger
- * /api/price/create:
+ * /api/prices/create:
  *   post:
  *     summary: Create a new price
  *     tags: [Pricing]
@@ -125,7 +125,7 @@
 
 /**
  * @swagger
- * /api/price/all:
+ * /api/prices/all:
  *   get:
  *     summary: Get all active prices
  *     tags: [Pricing]
@@ -178,7 +178,7 @@
 
 /**
  * @swagger
- * /api/price/plan/{planType}:
+ * /api/prices/plan/{planType}:
  *   get:
  *     summary: Get price by plan type
  *     tags: [Pricing]
@@ -210,7 +210,7 @@
 
 /**
  * @swagger
- * /api/price/plan/{planType}/with-available-discounts:
+ * /api/prices/plan/{planType}/with-available-discounts:
  *   get:
  *     summary: Get price with available discounts (no automatic application)
  *     tags: [Pricing]
@@ -288,7 +288,7 @@
 
 /**
  * @swagger
- * /api/price/apply-discount:
+ * /api/prices/apply-discount:
  *   post:
  *     summary: Apply discount to price using coupon code (automatically looks up base price)
  *     tags: [Pricing]
@@ -355,7 +355,7 @@
 
 /**
  * @swagger
- * /api/price/plan/{planType}:
+ * /api/prices/plan/{planType}:
  *   put:
  *     summary: Update price for a plan type
  *     tags: [Pricing]
@@ -388,6 +388,83 @@
  *     responses:
  *       200:
  *         description: Price updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 price:
+ *                   $ref: '#/components/schemas/Price'
+ *       404:
+ *         description: Price not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /api/prices/assign-discount:
+ *   post:
+ *     summary: Assign a discount to a price (only one discount per price)
+ *     tags: [Pricing]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - priceId
+ *               - discountId
+ *             properties:
+ *               priceId:
+ *                 type: string
+ *                 description: ID of the price to assign discount to
+ *               discountId:
+ *                 type: string
+ *                 description: ID of the discount to assign
+ *     responses:
+ *       200:
+ *         description: Discount assigned successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 price:
+ *                   $ref: '#/components/schemas/Price'
+ *       400:
+ *         description: Bad request or discount not active
+ *       404:
+ *         description: Price or discount not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /api/prices/remove-discount/{priceId}:
+ *   delete:
+ *     summary: Remove discount from a price
+ *     tags: [Pricing]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: priceId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the price to remove discount from
+ *     responses:
+ *       200:
+ *         description: Discount removed successfully
  *         content:
  *           application/json:
  *             schema:

@@ -9,7 +9,9 @@ const { initializeScheduledTasks } = require("./utils/scheduler");
 const logger = require("./utils/logger");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY || "");
 const spacesConfig = require("./config/spacesConfig");
-const PriceDiscountAssignment = require("./models/PriceDiscountAssignment");
+const Price = require("./models/Price");
+const Discount = require("./models/Discount");
+
 
 // Swagger documentation
 const swaggerUi = require('swagger-ui-express');
@@ -116,13 +118,28 @@ app.post("/api/payment-sheet", async (req, res) => {
     const { plan, priceId, userId } = req.body; // Get plan and userId from request
 
     // Convert amount to cents
-    const price = await PriceDiscountAssignment.findOne({ priceId: priceId });
+    const price = await Price.findById(priceId);
 
     if (!price) {
       return res.status(404).json({ error: "Price not found" });
     }
 
-    const amountInCents = Math.round(parseFloat(price.price) * 100);
+    // Calculate final price with discount if assigned
+    let finalPrice = price.basePrice;
+    if (price.discountId) {
+      const discount = await Discount.findById(price.discountId);
+      if (discount && discount.isActive && 
+          new Date() >= discount.startDate && 
+          new Date() <= discount.endDate) {
+        if (discount.discountType === 'percentage') {
+          finalPrice = price.basePrice * (1 - discount.discountValue / 100);
+        } else {
+          finalPrice = Math.max(0, price.basePrice - discount.discountValue);
+        }
+      }
+    }
+
+    const amountInCents = Math.round(finalPrice * 100);
 
     // Create a new customer
     const customer = await stripe.customers.create();

@@ -26,6 +26,11 @@ const PriceSchema = new mongoose.Schema(
     description: {
       type: String,
       default: ''
+    },
+    discountId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Discount',
+      default: null
     }
   },
   { timestamps: true }
