@@ -8,6 +8,7 @@ const connectDB = require("./DB/db");
 const { initializeScheduledTasks } = require("./utils/scheduler");
 const logger = require("./utils/logger");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY || "");
+const spacesConfig = require("./config/spacesConfig");
 const PriceDiscountAssignment = require("./models/PriceDiscountAssignment");
 
 // Swagger documentation
@@ -17,6 +18,9 @@ const swaggerSpecs = require('./docs/swagger');
 const app = express();
 const port = process.env.PORT || 8003;
 const host = process.env.HOST || '192.168.1.25';
+
+// Validate DigitalOcean Spaces configuration
+spacesConfig.validateConfig();
 
 // CORS Configuration
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
@@ -98,14 +102,13 @@ app.use("/api/subscription", require("./router/subscriptionRoutes"));
 app.use("/api/favorites", require("./router/favoriteSoundRoutes"));
 app.use("/api/playlists", require("./router/playlistRoutes"));
 app.use("/api/app-ratings", require("./router/appRatingRoutes"));
-app.use("/api/narrators", require("./router/narratorRoutes")); // ✅ fixed here
+app.use("/api/badges", require("./router/badgeRoutes"));
+app.use("/api/narrators", require("./router/narratorRoutes"));
+app.use("/api/prices", require("./router/priceRoutes"));
+app.use("/api/discounts", require("./router/discountRoutes"));
+app.use("/api/payments", require("./router/paymentRoute"));
 app.use("/api/activation-codes", require("./router/activationCodeRoutes"));
-app.use("/api/badges", require("./router/badgeRoutes")); // Registering the new badge progress route
-app.use("/api/email", require("./router/emailRoutes")); // Email management routes
-app.use("/api/price", require("./router/priceRoutes")); // Price management routes
-app.use("/api/discount", require("./router/discountRoutes")); // Discount management routes
-app.use("/api/price-discount-assignments", require("./router/priceDiscountAssignmentRoutes")); // Price-discount assignment routes
-// app.use("/webhook", require("./router/webhookRoutes")); // Webhook routes (should be before other middleware)
+app.use("/api/emails", require("./router/emailRoutes"));
 
 // Payment Sheet Route
 app.post("/api/payment-sheet", async (req, res) => {
