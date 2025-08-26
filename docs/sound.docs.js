@@ -1,5 +1,12 @@
 /**
  * @swagger
+ * # Sound API Documentation
+ * 
+ * ## Category Format Examples:
+ * - Single category: "687fcc933d2bab01cfef06f4"
+ * - Multiple categories: "[\"687fcc933d2bab01cfef06f4\", \"another_category_id\"]"
+ * - Array format: ["687fcc933d2bab01cfef06f4"]
+ * 
  * components:
  *   schemas:
  *     Sound:
@@ -29,7 +36,7 @@
  *           type: array
  *           items:
  *             type: string
- *           description: Array of category IDs
+ *           description: Array of category IDs. Example: ["687fcc933d2bab01cfef06f4"]
  *         status:
  *           type: string
  *           enum: [Standard, Premium]

@@ -5,17 +5,18 @@
  *     PaymentSheetRequest:
  *       type: object
  *       required:
- *         - amount
+ *         - plan
+ *         - priceId
  *       properties:
- *         amount:
- *           type: number
- *           description: Payment amount in dollars
  *         plan:
  *           type: string
- *           description: Subscription plan
+ *           description: Subscription plan name
+ *         priceId:
+ *           type: string
+ *           description: ID of the price record to use for payment calculation
  *         userId:
  *           type: string
- *           description: User ID
+ *           description: User ID (optional, used for metadata)
  *     
  *     PaymentSheetResponse:
  *       type: object
@@ -25,13 +26,13 @@
  *           description: Stripe payment intent client secret
  *         ephemeralKey:
  *           type: string
- *           description: Stripe ephemeral key
+ *           description: Stripe ephemeral key for the customer
  *         customer:
  *           type: string
  *           description: Stripe customer ID
  *         publishableKey:
  *           type: string
- *           description: Stripe publishable key
+ *           description: Stripe publishable key for the frontend
  */
 
 /**
@@ -45,7 +46,8 @@
  * @swagger
  * /api/payment-sheet:
  *   post:
- *     summary: Create payment sheet for Stripe
+ *     summary: Create payment sheet parameters for Stripe payment
+ *     description: Creates a Stripe payment intent and returns the necessary parameters for the frontend to display a payment sheet. The endpoint automatically calculates the final price including any applicable discounts.
  *     tags: [Payments]
  *     requestBody:
  *       required: true
@@ -55,13 +57,13 @@
  *             $ref: '#/components/schemas/PaymentSheetRequest'
  *     responses:
  *       200:
- *         description: Payment sheet created successfully
+ *         description: Payment sheet parameters created successfully
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/PaymentSheetResponse'
- *       400:
- *         description: Invalid request
+ *       404:
+ *         description: Price not found
  *         content:
  *           application/json:
  *             schema:

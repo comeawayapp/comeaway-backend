@@ -118,19 +118,16 @@ class SpacesService {
 
       if (response.status === 200) {
         const fileUrl = `https://${this.bucket}.${this.endpoint}/${objectKey}`;
-        logger.info('File uploaded successfully to DigitalOcean Spaces', {
-          objectKey,
-          fileUrl,
-          status: response.status
-        });
+      
         return fileUrl;
       } else {
-        throw new Error(`Upload failed with status: ${response.status}`);
+        throw new Error(`Upload failed with status: ${response}`);
       }
 
     } catch (error) {
       logger.error('Error uploading file to DigitalOcean Spaces', {
         error: error.message,
+        response: error,
         objectKey,
         filePath
       });

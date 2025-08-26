@@ -3,6 +3,7 @@ const checkProStatus = require("./checkProStatus");
 
 // Middleware to skip body parsing for file upload routes
 const skipBodyParsing = (req, res, next) => {
+  console.log("skipBodyParsing", req);
   // Set a flag to indicate this route should skip body parsing
   req.skipBodyParsing = true;
   next();
