@@ -55,23 +55,31 @@ class SpacesService {
   }
 
   /**
-   * Upload file to DigitalOcean Spaces
+   * Upload file to DigitalOcean Spaces using streaming for better performance
    */
-  async uploadFile(filePath, objectKey, contentType = 'audio/mpeg', acl = 'public-read') {
+  async uploadFile(filePath, objectKey, contentType = 'audio/mpeg', acl = 'public-read', onProgress = null) {
     try {
       if (!this.endpoint || !this.bucket || !this.region || !this.accessKey || !this.secretKey) {
         throw new Error('DigitalOcean Spaces configuration incomplete');
       }
 
-      const fileBuffer = fs.readFileSync(filePath);
-      const contentLength = fileBuffer.length;
+      // ✅ GET FILE SIZE WITHOUT LOADING INTO MEMORY
+      const fileStats = fs.statSync(filePath);
+      const fileSize = fileStats.size;
+      
       const timestamp = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
       const date = timestamp.slice(0, 8);
-      const payloadHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
 
-      // Create headers in the correct order
+      // ✅ CREATE FILE STREAM FOR HASH CALCULATION
+      const hashStream = fs.createReadStream(filePath);
+      const payloadHash = await this.calculateStreamHash(hashStream);
+
+      // ✅ CREATE UPLOAD STREAM
+      const uploadStream = fs.createReadStream(filePath);
+
+      // Create headers
       const headers = {
-        'Content-Length': contentLength.toString(),
+        'Content-Length': fileSize.toString(),
         'Content-Type': contentType,
         'Host': `${this.bucket}.${this.endpoint}`,
         'x-amz-acl': acl,
@@ -100,39 +108,65 @@ class SpacesService {
       // Upload file
       const url = `https://${this.bucket}.${this.endpoint}/${objectKey}`;
       
-      logger.info('Uploading file to DigitalOcean Spaces', {
+      logger.info('Uploading file to DigitalOcean Spaces using streaming', {
         objectKey,
-        fileSize: contentLength,
+        fileSize,
         bucket: this.bucket,
         region: this.region
       });
 
-      const response = await axios.put(url, fileBuffer, {
+      // ✅ TRACK UPLOAD PROGRESS
+      let uploadedBytes = 0;
+      uploadStream.on('data', (chunk) => {
+        uploadedBytes += chunk.length;
+        if (onProgress) {
+          onProgress(uploadedBytes, fileSize);
+        }
+      });
+
+      // ✅ SEND STREAM INSTEAD OF BUFFER
+      const response = await axios.put(url, uploadStream, {
         headers: {
           ...headers,
           'Authorization': authorization
         },
         maxContentLength: Infinity,
-        maxBodyLength: Infinity
+        maxBodyLength: Infinity,
+        onUploadProgress: (progressEvent) => {
+          if (onProgress) {
+            onProgress(progressEvent.loaded, progressEvent.total);
+          }
+        }
       });
 
       if (response.status === 200) {
         const fileUrl = `https://${this.bucket}.${this.endpoint}/${objectKey}`;
-      
+        logger.info('File uploaded successfully using streaming', { objectKey, fileSize });
         return fileUrl;
       } else {
-        throw new Error(`Upload failed with status: ${response}`);
+        throw new Error(`Upload failed with status: ${response.status}`);
       }
 
     } catch (error) {
       logger.error('Error uploading file to DigitalOcean Spaces', {
         error: error.message,
-        response: error,
         objectKey,
         filePath
       });
       throw error;
     }
+  }
+
+  /**
+   * Calculate hash from stream without loading entire file into memory
+   */
+  async calculateStreamHash(stream) {
+    return new Promise((resolve, reject) => {
+      const hash = crypto.createHash('sha256');
+      stream.on('data', (chunk) => hash.update(chunk));
+      stream.on('end', () => resolve(hash.digest('hex')));
+      stream.on('error', reject);
+    });
   }
 
   /**

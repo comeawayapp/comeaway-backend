@@ -19,6 +19,8 @@ router.get(
 );
 // Get sound by ID route
 router.get("/getSingleSound/:id", authMiddleware, soundController.getSoundById);
+// Check upload status route
+router.get("/upload-status/:id", authMiddleware, soundController.getUploadStatus);
 // Update sound route
 router.put("/updateSound/:id", authMiddleware, soundController.updateSound);
 // Delete sound route

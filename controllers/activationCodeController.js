@@ -179,7 +179,7 @@ exports.redeemActivationCode = async (req, res) => {
       redeemed: true,
       redeemedBy: userId,
       redeemedAt: new Date(),
-      subscriptionExpiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
+      subscriptionExpiresAt: new Date('2030-12-31T23:59:59.999Z'), // Until end of 2030
     };
 
     // If customer details don't match, update them with logged-in user's details

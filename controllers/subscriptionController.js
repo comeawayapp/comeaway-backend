@@ -8,6 +8,7 @@ exports.createSubscription = async (req, res) => {
     const { plan } = req.body;
     const userId = req.user && req.user._id;
     const user = await User.findById(userId);
+    console.log(user, "user");
 
     if (!plan || !user) {
       return res

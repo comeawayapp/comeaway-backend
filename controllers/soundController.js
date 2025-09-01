@@ -3,15 +3,11 @@ const Sound = require("../models/sound");
 const multer = require("multer");
 const path = require("path");
 const playedSound = require("../models/playedSound");
-const mm = require("music-metadata");
+const { parseFile } = require("music-metadata");
 const logger = require("../utils/logger");
 const spacesService = require("../services/spacesService");
 const fs = require("fs"); // Added for local file cleanup
-const mime = require("mime-types"); // npm install mime-types
-
-
-
-
+const mime = require("mime-types"); // Fixed: changed from 'mime-type' to 'mime-types'
 
 // Set up multer for temporary file storage (files will be uploaded to Spaces after processing)
 const storage = multer.diskStorage({
@@ -140,7 +136,7 @@ const createSound = async (req, res) => {
     let duration = null;
     try {
       logger.debug('Extracting audio metadata from local file');
-      const metadata = await mm.parseFile(soundFilePath);
+      const metadata = await parseFile(soundFilePath);
       duration = metadata.format.duration;
       logger.debug('Audio metadata extracted', { duration });
     } catch (metaErr) {
@@ -185,93 +181,40 @@ const createSound = async (req, res) => {
       });
     }
 
-    // Upload files to DigitalOcean Spaces
-    let soundFileUrl, thumbnailUrl;
-
-    try {
-      if (spacesService.isConfigured()) {
-        // Upload sound file to Spaces
-        const soundObjectKey = process.env.NODE_ENV === 'production' ? `prod/sounds/${Date.now()}-${path.basename(soundFilePath).replace(/\s+/g, '')}` : `dev/sounds/test/${Date.now()}-${path.basename(soundFilePath).replace(/\s+/g, '')}`;
-        soundFileUrl = await spacesService.uploadFile(
-          soundFilePath, 
-          soundObjectKey, 
-          'audio/mpeg'
-        );
-
-        // Upload thumbnail to Spaces
-        const ext = path.extname(thumbnailPath).toLowerCase(); // e.g., '.png', '.jpg'
-        const cleanFilename = `thumbnail-${Date.now()}${ext}`;
-        
-        const thumbnailObjectKey = process.env.NODE_ENV === 'production' 
-          ? `prod/thumbnails/${cleanFilename}` 
-          : `dev/thumbnails/test/${cleanFilename}`;
-        
-        // Result: thumbnail-1756227706242.png
-        
-        const mimeType = mime.lookup(ext) || "application/octet-stream";
-        
-        thumbnailUrl = await spacesService.uploadFile(
-          thumbnailPath,
-          thumbnailObjectKey,
-          mimeType
-        );
-        
-
-        logger.info('Files uploaded to DigitalOcean Spaces successfully', {
-          soundFileUrl,
-          // thumbnailUrl
-        });
-        console.log(soundFileUrl, "soundFileUrl");
-        // console.log(thumbnailUrl, "thumbnailUrl");  
-
-        // Clean up local files after successful upload
-        try {
-          fs.unlinkSync(soundFilePath);
-          fs.unlinkSync(thumbnailPath);
-          logger.debug('Local files cleaned up successfully');
-        } catch (cleanupErr) {
-          logger.warn('Failed to cleanup local files', { error: cleanupErr.message });
-        }
-
-      } else {
-        // Fallback to local storage if Spaces not configured
-        logger.warn('DigitalOcean Spaces not configured, using local storage');
-        soundFileUrl = soundFilePath;
-        thumbnailUrl = thumbnailPath;
-      }
-    } catch (uploadErr) {
-      logger.error('Failed to upload files to DigitalOcean Spaces', { error: uploadErr.message });
-      // Fallback to local storage
-      soundFileUrl = soundFilePath;
-      thumbnailUrl = thumbnailPath;
-    }
-
-    // Create a new sound
+    // Create a new sound immediately (without file URLs)
     const newSound = new Sound({
       title,
       description,
-      soundFile: soundFileUrl,
-      thumbnail: thumbnailUrl,
+      soundFile: 'pending', // Placeholder - will be updated after upload
+      thumbnail: 'pending', // Placeholder - will be updated after upload
       categories: parsedCategories,
       status,
       addedDate: new Date(),
       duration,
+      uploadStatus: 'uploading' // Track upload status
     });
 
     logger.info("New sound object created", {
       title: newSound.title,
       status: newSound.status,
-      duration: newSound.duration
+      duration: newSound.duration,
+      soundId: newSound._id
     });
 
     // Save the sound to the database
     await newSound.save();
     logger.info("Sound saved successfully", { soundId: newSound._id });
 
+    // Return response immediately
     res.status(201).json({
       message: "Sound created successfully",
-      soundId: newSound._id
+      soundId: newSound._id,
+      uploadStatus: 'uploading'
     });
+
+    // Start asynchronous file uploads
+    uploadFilesAsync(newSound._id, soundFilePath, thumbnailPath, parsedCategories);
+
   } catch (error) {
     logger.error('Error creating sound', {
       error: error.message,
@@ -282,6 +225,99 @@ const createSound = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+// Asynchronous file upload function
+const uploadFilesAsync = async (soundId, soundFilePath, thumbnailPath, categories) => {
+  try {
+    logger.info('Starting asynchronous file uploads', { soundId });
+
+    let soundFileUrl, thumbnailUrl;
+
+    if (spacesService.isConfigured()) {
+      // Upload sound file to Spaces
+      const soundExt = path.extname(soundFilePath).toLowerCase();
+      const cleanSoundFilename = `sound-${Date.now()}${soundExt}`;
+      const soundObjectKey = process.env.NODE_ENV === 'production' ? `prod/sounds/${cleanSoundFilename}` : `dev/sounds/${cleanSoundFilename}`;
+      
+      soundFileUrl = await spacesService.uploadFile(
+        soundFilePath, 
+        soundObjectKey, 
+        'audio/mpeg',
+        'public-read',
+        (uploaded, total) => {
+          logger.info(`Sound file upload progress: ${Math.round((uploaded/total)*100)}%`, { soundId });
+        }
+      );
+
+      // Upload thumbnail to Spaces
+      const ext = path.extname(thumbnailPath).toLowerCase();
+      const cleanFilename = `thumbnail-${Date.now()}${ext}`;
+      const thumbnailObjectKey = process.env.NODE_ENV === 'production' 
+        ? `prod/thumbnails/${cleanFilename}` 
+        : `dev/thumbnails/test/${cleanFilename}`;
+      
+      const mimeType = mime.lookup(ext) || "application/octet-stream";
+      
+      thumbnailUrl = await spacesService.uploadFile(
+        thumbnailPath,
+        thumbnailObjectKey,
+        mimeType,
+        'public-read',
+        (uploaded, total) => {
+          logger.info(`Thumbnail upload progress: ${Math.round((uploaded/total)*100)}%`, { soundId });
+        }
+      );
+
+      logger.info('Files uploaded to DigitalOcean Spaces successfully', {
+        soundId,
+        soundFileUrl,
+        thumbnailUrl
+      });
+
+      // Clean up local files after successful upload
+      try {
+        fs.unlinkSync(soundFilePath);
+        fs.unlinkSync(thumbnailPath);
+        logger.debug('Local files cleaned up successfully', { soundId });
+      } catch (cleanupErr) {
+        logger.warn('Failed to cleanup local files', { error: cleanupErr.message, soundId });
+      }
+
+    } else {
+      // Fallback to local storage if Spaces not configured
+      logger.warn('DigitalOcean Spaces not configured, using local storage', { soundId });
+      soundFileUrl = soundFilePath;
+      thumbnailUrl = thumbnailPath;
+    }
+
+    // Update sound record with file URLs
+    await Sound.findByIdAndUpdate(soundId, {
+      soundFile: soundFileUrl,
+      thumbnail: thumbnailUrl,
+      uploadStatus: 'completed',
+      uploadCompletedAt: new Date()
+    });
+
+    logger.info('Sound record updated with file URLs', { 
+      soundId, 
+      soundFileUrl, 
+      thumbnailUrl 
+    });
+
+  } catch (uploadErr) {
+    logger.error('Failed to upload files asynchronously', { 
+      error: uploadErr.message, 
+      soundId 
+    });
+    
+    // Update sound record with error status
+    await Sound.findByIdAndUpdate(soundId, {
+      uploadStatus: 'failed',
+      uploadError: uploadErr.message
+    });
+  }
+};
+
 exports.getSounds = async (req, res) => {
   try {
     const sounds = await Sound.find();
@@ -297,12 +333,14 @@ exports.getSounds = async (req, res) => {
       playCount: sound.playCount,
       addedDate: sound.addedDate,
       duration: sound.duration, // Ensure duration is included
+      uploadStatus: sound.soundFile == 'pending' ? sound.uploadStatus : "completed",
     }));
     res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 exports.getSoundById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -318,6 +356,7 @@ exports.getSoundById = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 exports.updateSound = (req, res) => {
   upload(req, res, async (err) => {
     if (err) {
@@ -377,12 +416,19 @@ exports.updateSound = (req, res) => {
       if (req.files && req.files.thumbnail) {
         try {
           if (spacesService.isConfigured()) {
-            // Upload new thumbnail to Spaces
-            const thumbnailObjectKey = `thumbnails/${Date.now()}-${path.basename(req.files.thumbnail[0].path)}`;
+            // Upload new thumbnail to Spaces with clean filename
+            const ext = path.extname(req.files.thumbnail[0].path).toLowerCase();
+            const cleanFilename = `thumbnail-${Date.now()}${ext}`;
+            const thumbnailObjectKey = process.env.NODE_ENV === 'production' 
+              ? `prod/thumbnails/${cleanFilename}` 
+              : `dev/thumbnails/test/${cleanFilename}`;
+            
+            const mimeType = mime.lookup(ext) || "application/octet-stream";
+            
             newThumbnailUrl = await spacesService.uploadFile(
               req.files.thumbnail[0].path,
               thumbnailObjectKey,
-              'image/jpeg'
+              mimeType
             );
 
             // Delete old thumbnail from Spaces if it exists there
@@ -430,6 +476,7 @@ exports.updateSound = (req, res) => {
     }
   });
 };
+
 exports.deleteSound = async (req, res) => {
   try {
     const { id } = req.params;
@@ -477,6 +524,7 @@ exports.deleteSound = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 exports.getPopularTodaySongs = async (req, res) => {
   try {
     const now = new Date();
@@ -563,6 +611,7 @@ exports.logPlayedSound = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 exports.getRecentlyPlayedSounds = async (req, res) => {
   try {
     const { userId } = req.params; // or from token/session
@@ -598,3 +647,29 @@ exports.getRecentlyPlayedSounds = async (req, res) => {
 
 // Export the createSound function
 exports.createSound = createSound;
+
+// Check upload status
+exports.getUploadStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ message: "Invalid or missing sound id" });
+    }
+
+    const sound = await Sound.findById(id).select('uploadStatus uploadError soundFile thumbnail');
+    if (!sound) {
+      return res.status(404).json({ message: "Sound not found" });
+    }
+
+    res.status(200).json({
+      soundId: sound._id,
+      uploadStatus: sound.uploadStatus,
+      uploadError: sound.uploadError,
+      soundFile: sound.uploadStatus === 'completed' ? sound.soundFile : null,
+      thumbnail: sound.uploadStatus === 'completed' ? sound.thumbnail : null
+    });
+  } catch (error) {
+    logger.error('Error checking upload status', { error: error.message, soundId: req.params.id });
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};

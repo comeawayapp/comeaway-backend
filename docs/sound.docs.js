@@ -1,12 +1,5 @@
 /**
  * @swagger
- * # Sound API Documentation
- * 
- * ## Category Format Examples:
- * - Single category: "687fcc933d2bab01cfef06f4"
- * - Multiple categories: "[\"687fcc933d2bab01cfef06f4\", \"another_category_id\"]"
- * - Array format: ["687fcc933d2bab01cfef06f4"]
- * 
  * components:
  *   schemas:
  *     Sound:
@@ -36,7 +29,7 @@
  *           type: array
  *           items:
  *             type: string
- *           description: Array of category IDs. Example: ["687fcc933d2bab01cfef06f4"]
+ *           description: Array of category IDs
  *         status:
  *           type: string
  *           enum: [Standard, Premium]
@@ -192,10 +185,14 @@
  * @swagger
  * /api/sounds/add-sounds:
  *   post:
- *     summary: Create a new sound
+ *     summary: Create a new sound with asynchronous file upload
  *     tags: [Sounds]
  *     security:
  *       - bearerAuth: []
+ *     description: |
+ *       Creates a new sound record immediately and returns response to frontend.
+ *       File uploads happen asynchronously in the background.
+ *       Use the upload-status endpoint to check when files are ready.
  *     requestBody:
  *       required: true
  *       content:
@@ -223,18 +220,29 @@
  *               soundFile:
  *                 type: string
  *                 format: binary
- *                 description: Audio file (MP3, WAV, M4A)
+ *                 description: Audio file (MP3, WAV, M4A) - Max 100MB, uploaded asynchronously
  *               thumbnail:
  *                 type: string
  *                 format: binary
- *                 description: Thumbnail image (JPEG, PNG, GIF)
+ *                 description: Thumbnail image (JPEG, PNG, GIF) - Max 100MB, uploaded asynchronously
  *     responses:
  *       201:
- *         description: Sound created successfully
+ *         description: Sound created successfully (files uploading in background)
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/SoundResponse'
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Sound created successfully"
+ *                 soundId:
+ *                   type: string
+ *                   description: Sound ID to track upload status
+ *                 uploadStatus:
+ *                   type: string
+ *                   enum: [uploading]
+ *                   example: "uploading"
  *       400:
  *         description: Validation error or duplicate title
  *         content:
@@ -243,6 +251,68 @@
  *               $ref: '#/components/schemas/Error'
  *       401:
  *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+
+/**
+ * @swagger
+ * /api/sounds/upload-status/{id}:
+ *   get:
+ *     summary: Check file upload status for a sound
+ *     tags: [Sounds]
+ *     security:
+ *       - bearerAuth: []
+ *     description: |
+ *       Check the status of asynchronous file uploads for a sound.
+ *       Poll this endpoint to know when files are ready for use.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Sound ID
+ *     responses:
+ *       200:
+ *         description: Upload status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 soundId:
+ *                   type: string
+ *                   description: Sound ID
+ *                 uploadStatus:
+ *                   type: string
+ *                   enum: [uploading, completed, failed]
+ *                   description: Current upload status
+ *                 uploadError:
+ *                   type: string
+ *                   description: Error message if upload failed
+ *                 soundFile:
+ *                   type: string
+ *                   description: Sound file URL (only if completed)
+ *                 thumbnail:
+ *                   type: string
+ *                   description: Thumbnail URL (only if completed)
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Sound not found
  *         content:
  *           application/json:
  *             schema:
