@@ -5,11 +5,8 @@ const authMiddleware = require("../middleware/auth"); // Updated path
 const { checkProStatus, skipBodyParsing } = require("../middleware/index");
 const logger = require("../utils/logger");
 
-// Import multer configuration from sound controller
-const { createSoundWithUpload } = require("../controllers/soundController");
-
-// Create sound route - skip body parsing for file upload
-router.post("/add-sounds", skipBodyParsing, authMiddleware, createSoundWithUpload);
+// Create sound route - direct upload approach (no multer needed)
+router.post("/add-sounds", authMiddleware, soundController.createSound);
 // Get all sounds route
 router.get(
   "/getSounds",
@@ -21,7 +18,8 @@ router.get(
 router.get("/getSingleSound/:id", authMiddleware, soundController.getSoundById);
 // Check upload status route
 router.get("/upload-status/:id", authMiddleware, soundController.getUploadStatus);
-// Update sound route
+
+// Update sound route - direct upload approach (no multer needed)
 router.put("/updateSound/:id", authMiddleware, soundController.updateSound);
 // Delete sound route
 router.delete("/deleteSound/:id", authMiddleware, soundController.deleteSound);

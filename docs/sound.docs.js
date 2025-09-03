@@ -44,6 +44,17 @@
  *         duration:
  *           type: number
  *           description: Duration in seconds
+ *         uploadStatus:
+ *           type: string
+ *           enum: [uploading, completed, failed]
+ *           description: File upload status
+ *         uploadError:
+ *           type: string
+ *           description: Error message if upload failed
+ *         uploadCompletedAt:
+ *           type: string
+ *           format: date-time
+ *           description: Timestamp when upload completed
  *     
  *     CreateSoundRequest:
  *       type: object
@@ -185,18 +196,19 @@
  * @swagger
  * /api/sounds/add-sounds:
  *   post:
- *     summary: Create a new sound with asynchronous file upload
+ *     summary: Create a new sound with direct file URLs
  *     tags: [Sounds]
  *     security:
  *       - bearerAuth: []
  *     description: |
- *       Creates a new sound record immediately and returns response to frontend.
- *       File uploads happen asynchronously in the background.
- *       Use the upload-status endpoint to check when files are ready.
+ *       Creates a new sound record with pre-uploaded file URLs.
+ *       Files should be uploaded directly to DigitalOcean Spaces from the frontend
+ *       using the presigned-url endpoint or AWS SDK.
+ *       This approach provides faster uploads and better performance.
  *     requestBody:
  *       required: true
  *       content:
- *         multipart/form-data:
+ *         application/json:
  *           schema:
  *             type: object
  *             required:
@@ -209,25 +221,30 @@
  *             properties:
  *               title:
  *                 type: string
+ *                 description: Sound title
  *               description:
  *                 type: string
+ *                 description: Sound description
  *               categories:
  *                 type: string
  *                 description: JSON string of category IDs
  *               status:
  *                 type: string
  *                 enum: [Standard, Premium]
+ *                 description: Sound access level
  *               soundFile:
  *                 type: string
- *                 format: binary
- *                 description: Audio file (MP3, WAV, M4A) - Max 100MB, uploaded asynchronously
+ *                 format: uri
+ *                 description: Direct URL to audio file in DigitalOcean Spaces
+ *                 example: "https://comeaway-audio.nyc3.digitaloceanspaces.com/uploads/sound-1234567890.mp3"
  *               thumbnail:
  *                 type: string
- *                 format: binary
- *                 description: Thumbnail image (JPEG, PNG, GIF) - Max 100MB, uploaded asynchronously
+ *                 format: uri
+ *                 description: Direct URL to thumbnail image in DigitalOcean Spaces
+ *                 example: "https://comeaway-audio.nyc3.digitaloceanspaces.com/uploads/thumb-1234567890.jpg"
  *     responses:
  *       201:
- *         description: Sound created successfully (files uploading in background)
+ *         description: Sound created successfully
  *         content:
  *           application/json:
  *             schema:
@@ -238,13 +255,92 @@
  *                   example: "Sound created successfully"
  *                 soundId:
  *                   type: string
- *                   description: Sound ID to track upload status
+ *                   description: Sound ID
  *                 uploadStatus:
  *                   type: string
- *                   enum: [uploading]
- *                   example: "uploading"
+ *                   enum: [completed]
+ *                   example: "completed"
+ *                 soundFile:
+ *                   type: string
+ *                   description: Sound file URL
+ *                 thumbnail:
+ *                   type: string
+ *                   description: Thumbnail URL
  *       400:
- *         description: Validation error or duplicate title
+ *         description: Validation error, duplicate title, or invalid URLs
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+
+/**
+ * @swagger
+ * /api/sounds/presigned-url:
+ *   post:
+ *     summary: Generate presigned URL for direct file upload
+ *     tags: [Sounds]
+ *     security:
+ *       - bearerAuth: []
+ *     description: |
+ *       Generates a presigned URL for direct file upload to DigitalOcean Spaces.
+ *       Use this endpoint to get a temporary upload URL that allows frontend
+ *       to upload files directly to Spaces without going through the backend.
+ *       This provides faster uploads and better performance for large files.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - fileName
+ *               - fileType
+ *             properties:
+ *               fileName:
+ *                 type: string
+ *                 description: Original filename
+ *                 example: "my-song.mp3"
+ *               fileType:
+ *                 type: string
+ *                 description: MIME type of the file
+ *                 example: "audio/mpeg"
+ *     responses:
+ *       200:
+ *         description: Presigned URL generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 presignedUrl:
+ *                   type: string
+ *                   format: uri
+ *                   description: Temporary URL for direct upload to Spaces
+ *                 objectKey:
+ *                   type: string
+ *                   description: Object key in Spaces bucket
+ *                 expires:
+ *                   type: integer
+ *                   description: URL expiration time in seconds
+ *                 fileUrl:
+ *                   type: string
+ *                   format: uri
+ *                   description: Final public URL after upload
+ *       400:
+ *         description: Missing required fields
  *         content:
  *           application/json:
  *             schema:
@@ -274,6 +370,8 @@
  *     description: |
  *       Check the status of asynchronous file uploads for a sound.
  *       Poll this endpoint to know when files are ready for use.
+ *       Note: This endpoint is mainly for backward compatibility with
+ *       the old async upload approach. Direct uploads complete immediately.
  *     parameters:
  *       - in: path
  *         name: id
@@ -424,10 +522,14 @@
  * @swagger
  * /api/sounds/updateSound/{id}:
  *   put:
- *     summary: Update sound
+ *     summary: Update sound with direct file URLs
  *     tags: [Sounds]
  *     security:
  *       - bearerAuth: []
+ *     description: |
+ *       Updates an existing sound record with new information and file URLs.
+ *       Files should be uploaded directly to DigitalOcean Spaces from the frontend
+ *       before calling this endpoint. Only provide the fields you want to update.
  *     parameters:
  *       - in: path
  *         name: id
@@ -438,37 +540,48 @@
  *     requestBody:
  *       required: true
  *       content:
- *         multipart/form-data:
+ *         application/json:
  *           schema:
  *             type: object
  *             properties:
  *               title:
  *                 type: string
+ *                 description: Sound title
  *               description:
  *                 type: string
+ *                 description: Sound description
  *               categories:
  *                 type: string
  *                 description: JSON string of category IDs
  *               status:
  *                 type: string
  *                 enum: [Standard, Premium]
+ *                 description: Sound access level
  *               soundFile:
  *                 type: string
- *                 format: binary
- *                 description: Audio file (MP3, WAV, M4A)
+ *                 format: uri
+ *                 description: Direct URL to audio file in DigitalOcean Spaces (optional)
+ *                 example: "https://comeaway-audio.nyc3.digitaloceanspaces.com/uploads/sound-1234567890.mp3"
  *               thumbnail:
  *                 type: string
- *                 format: binary
- *                 description: Thumbnail image (JPEG, PNG, GIF)
+ *                 format: uri
+ *                 description: Direct URL to thumbnail image in DigitalOcean Spaces (optional)
+ *                 example: "https://comeaway-audio.nyc3.digitaloceanspaces.com/uploads/thumb-1234567890.jpg"
  *     responses:
  *       200:
  *         description: Sound updated successfully
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/SoundResponse'
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Sound updated successfully"
+ *                 sound:
+ *                   $ref: '#/components/schemas/Sound'
  *       400:
- *         description: Validation error
+ *         description: Validation error or invalid URLs
  *         content:
  *           application/json:
  *             schema:
