@@ -91,7 +91,7 @@ exports.login = async (req, res) => {
 
     // Create a JWT token
     const token = jwt.sign({ _id: gotuser._id }, process.env.JWT_SECRET, {
-      expiresIn: "24h",
+      expiresIn: "30d",
     });
     // Determine user type and activation method
     const userType = gotuser.isPro ? "Pro" : "Standard";
@@ -157,7 +157,7 @@ exports.googleSignIn = async (req, res) => {
 
     // Generate a JWT token for the user
     const token = jwt.sign({ _id: existingUser._id }, process.env.JWT_SECRET, {
-      expiresIn: "24h",
+      expiresIn: "30d",
     });
 
     // Respond with the user data and token
@@ -218,7 +218,7 @@ exports.facebookSignIn = async (req, res) => {
 
     // Generate a JWT token for the user
     const token = jwt.sign({ _id: existingUser._id }, process.env.JWT_SECRET, {
-      expiresIn: "24h",
+      expiresIn: "30d",
     });
 
     // Respond with the user data and token

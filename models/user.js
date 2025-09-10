@@ -25,6 +25,7 @@ const UserSchema = new mongoose.Schema(
     requestDeletionExpires: { type: Date }, // Account deletion OTP expiration time
     deletedAt: { type: Date }, // Soft delete timestamp
     deletionReason: { type: String }, // Reason for account deletion
+    stripeCustomerId: { type: String }, // Stripe customer ID
   },
   {
     timestamps: true, // This adds createdAt and updatedAt automatically

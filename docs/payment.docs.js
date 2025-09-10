@@ -7,6 +7,7 @@
  *       required:
  *         - plan
  *         - priceId
+ *         - userId
  *       properties:
  *         plan:
  *           type: string
@@ -16,7 +17,7 @@
  *           description: ID of the price record to use for payment calculation
  *         userId:
  *           type: string
- *           description: User ID (optional, used for metadata)
+ *           description: User ID (required for customer management)
  *     
  *     PaymentSheetResponse:
  *       type: object
@@ -33,6 +34,36 @@
  *         publishableKey:
  *           type: string
  *           description: Stripe publishable key for the frontend
+ *     
+ *     PaymentIntentRequest:
+ *       type: object
+ *       required:
+ *         - amount
+ *         - currency
+ *       properties:
+ *         amount:
+ *           type: number
+ *           description: Payment amount in cents
+ *         currency:
+ *           type: string
+ *           description: Currency code (3 letters, e.g., 'usd')
+ *         metadata:
+ *           type: object
+ *           description: Additional metadata for the payment intent
+ *     
+ *     PaymentIntentResponse:
+ *       type: object
+ *       properties:
+ *         clientSecret:
+ *           type: string
+ *           description: Stripe payment intent client secret
+ *     
+ *     Error:
+ *       type: object
+ *       properties:
+ *         error:
+ *           type: string
+ *           description: Error message
  */
 
 /**
@@ -44,10 +75,10 @@
 
 /**
  * @swagger
- * /api/payment-sheet:
+ * /api/payments/payment-sheet:
  *   post:
  *     summary: Create payment sheet parameters for Stripe payment
- *     description: Creates a Stripe payment intent and returns the necessary parameters for the frontend to display a payment sheet. The endpoint automatically calculates the final price including any applicable discounts.
+ *     description: Creates a Stripe payment intent and returns the necessary parameters for the frontend to display a payment sheet. The endpoint automatically calculates the final price including any applicable discounts and manages Stripe customers efficiently by reusing existing customers when possible.
  *     tags: [Payments]
  *     requestBody:
  *       required: true
@@ -62,8 +93,48 @@
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/PaymentSheetResponse'
+ *       400:
+ *         description: Bad request - missing required fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  *       404:
- *         description: Price not found
+ *         description: User or price not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+
+/**
+ * @swagger
+ * /api/payments/create-payment-intent:
+ *   post:
+ *     summary: Create a basic payment intent
+ *     description: Creates a Stripe payment intent for basic payment processing without customer management or discount calculations.
+ *     tags: [Payments]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/PaymentIntentRequest'
+ *     responses:
+ *       200:
+ *         description: Payment intent created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PaymentIntentResponse'
+ *       400:
+ *         description: Bad request - invalid input
  *         content:
  *           application/json:
  *             schema:

@@ -6,8 +6,8 @@ const ActivationCodeSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      minlength: 8,
-      maxlength: 8
+      minlength: 6,
+      maxlength: 6
     },
     productName: { type: String, required: true },
     orderNumber: { type: String, required: true },
