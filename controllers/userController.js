@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const user = require("../models/user");
 const emailService = require("../services/emailService");
 const { logProfileUpdate } = require("../utils/profileLogger");
+const jwksRsa = require('jwks-rsa');
 
 // Helper to check and update Pro status
 async function checkAndUpdateProStatus(userDoc) {
@@ -241,6 +242,136 @@ exports.facebookSignIn = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+// Apple Sign In
+exports.appleSignIn = async (req, res) => {
+  try {
+    const { identityToken, user: appleUser } = req.body;
+    
+    if (!identityToken) {
+      return res.status(400).json({ message: "Identity token is required" });
+    }
+
+    // Verify Apple identity token
+    const appleUserData = await verifyAppleToken(identityToken);
+    
+    if (!appleUserData) {
+      return res.status(400).json({ message: "Invalid Apple identity token" });
+    }
+
+    const { email, sub: appleId, email_verified } = appleUserData;
+    
+    // Check if a user with this email already exists in the database
+    let existingUser = await user.findOne({ email });
+    
+    if (!existingUser) {
+      // Create a new user if one does not exist
+      const newUser = new user({
+        firstname: appleUser?.name?.firstName || "Apple",
+        lastname: appleUser?.name?.lastName || "User",
+        email,
+        password: "appleId", // Default password for Apple sign-ins
+        role: "user", // Default role
+        status: "active", // Default status
+        isEmailVerified: email_verified || true, // Apple emails are pre-verified
+        appleId: appleId, // Store Apple ID for future reference
+        authProvider: "apple" // Track authentication provider
+      });
+
+      existingUser = await newUser.save();
+      console.log("New Apple user created:", newUser);
+    } else {
+      // Check if existing user is soft deleted
+      if (existingUser.status === "inactive" && existingUser.deletedAt) {
+        return res.status(404).json({
+          message: "User not found"
+        });
+      }
+      
+      // Update Apple ID if not already set
+      if (!existingUser.appleId) {
+        existingUser.appleId = appleId;
+        existingUser.authProvider = "apple";
+        await existingUser.save();
+      }
+      
+      console.log("Existing Apple user found:", existingUser);
+    }
+
+    // Check and update Pro status
+    existingUser = await checkAndUpdateProStatus(existingUser);
+
+    // Generate a JWT token for the user
+    const token = jwt.sign({ _id: existingUser._id }, process.env.JWT_SECRET, {
+      expiresIn: "30d",
+    });
+
+    // Determine user type and activation method
+    const userType = existingUser.isPro ? "Pro" : "Standard";
+    const activationMethod = existingUser.activationMode || "None";
+
+    // Respond with the user data and token
+    res.status(200).json({
+      message: "Apple Sign-In successful",
+      token,
+      user: {
+        _id: existingUser._id,
+        firstname: existingUser.firstname,
+        lastname: existingUser.lastname,
+        email: existingUser.email,
+        phoneNumber: existingUser.phoneNumber || "",
+        role: existingUser.role,
+        isEmailVerified: existingUser.isEmailVerified,
+        isPro: existingUser.isPro,
+        proExpiresAt: existingUser.proExpiresAt,
+        userType: userType,
+        activationMethod: activationMethod,
+        authProvider: existingUser.authProvider
+      },
+    });
+
+  } catch (error) {
+    console.error("Error in Apple Sign-In:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Helper function to verify Apple identity token
+async function verifyAppleToken(identityToken) {
+  try {
+    // Apple's JWKS endpoint
+    const client = jwksRsa({
+      jwksUri: 'https://appleid.apple.com/auth/keys',
+      cache: true,
+      cacheMaxAge: 600000, // 10 minutes
+      rateLimit: true,
+      jwksRequestsPerMinute: 5  
+    });
+
+    // Get the key ID from the token header
+    const decoded = jwt.decode(identityToken, { complete: true });
+    console.log(decoded, "Decoded");
+    if (!decoded || !decoded.header || !decoded.header.kid) {
+      throw new Error('Invalid token format');
+    }
+
+    // Get the signing key
+    const key = await client.getSigningKey(decoded?.header?.kid);
+    const signingKey = key.getPublicKey();
+
+    // Verify the token
+    const verified = jwt.verify(identityToken, signingKey, {
+      algorithms: ['RS256'],
+      issuer: 'https://appleid.apple.com',
+      audience: [process.env.APPLE_CLIENT_ID, 'com.payfiorg.kabo'], // Allow multiple audiences
+    });
+
+    return verified;
+  } catch (error) {
+    console.error('Apple token verification failed:', error);
+    return null;
+  }
+}
 
 // Signup
 exports.signup = async (req, res) => {

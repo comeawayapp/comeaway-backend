@@ -37,6 +37,7 @@ router.put(
 );
 router.post("/google-signin", userController.googleSignIn);
 router.post("/facebook-signin", userController.facebookSignIn);
+router.post("/apple-signin", userController.appleSignIn);
 
 // Profile management routes
 router.get(

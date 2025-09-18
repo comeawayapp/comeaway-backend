@@ -26,6 +26,8 @@ const UserSchema = new mongoose.Schema(
     deletedAt: { type: Date }, // Soft delete timestamp
     deletionReason: { type: String }, // Reason for account deletion
     stripeCustomerId: { type: String }, // Stripe customer ID
+    appleId: { type: String }, // Apple Sign In ID
+    authProvider: { type: String, enum: ["email", "google", "facebook", "apple"], default: "email" }, // Authentication provider
   },
   {
     timestamps: true, // This adds createdAt and updatedAt automatically
