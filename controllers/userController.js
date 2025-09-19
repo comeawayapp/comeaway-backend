@@ -262,8 +262,7 @@ exports.appleSignIn = async (req, res) => {
     const { email, sub: appleId, email_verified } = appleUserData;
     
     // Check if a user with this email already exists in the database
-    let existingUser = await user.findOne({ email });
-    
+    let existingUser = await user.findOne({ email, appleId, authProvider: "apple" });
     if (!existingUser) {
       // Create a new user if one does not exist
       const newUser = new user({
