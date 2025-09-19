@@ -270,7 +270,7 @@ exports.appleSignIn = async (req, res) => {
         firstname: appleUser?.name?.firstName || "Apple",
         lastname: appleUser?.name?.lastName || "User",
         email,
-        password: "appleId", // Default password for Apple sign-ins
+        password: appleId, // Default password for Apple sign-ins
         role: "user", // Default role
         status: "active", // Default status
         isEmailVerified: email_verified || true, // Apple emails are pre-verified
