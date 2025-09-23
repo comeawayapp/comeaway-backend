@@ -66,6 +66,153 @@ const options = {
               description: 'Success message'
             }
           }
+        },
+        // Stripe-specific schemas
+        CheckoutSession: {
+          type: 'object',
+          properties: {
+            sessionId: {
+              type: 'string',
+              description: 'Stripe checkout session ID'
+            },
+            url: {
+              type: 'string',
+              description: 'Checkout URL for redirect'
+            },
+            success: {
+              type: 'boolean',
+              description: 'Session creation success status'
+            }
+          }
+        },
+        PaymentSheet: {
+          type: 'object',
+          properties: {
+            paymentIntent: {
+              type: 'string',
+              description: 'Payment intent client secret'
+            },
+            ephemeralKey: {
+              type: 'string',
+              description: 'Ephemeral key for mobile payments'
+            },
+            customer: {
+              type: 'string',
+              description: 'Stripe customer ID'
+            },
+            publishableKey: {
+              type: 'string',
+              description: 'Stripe publishable key'
+            }
+          }
+        },
+        Subscription: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              description: 'Subscription ID'
+            },
+            stripeSubscriptionId: {
+              type: 'string',
+              description: 'Stripe subscription ID'
+            },
+            status: {
+              type: 'string',
+              enum: ['active', 'canceled', 'past_due', 'unpaid', 'incomplete', 'trialing'],
+              description: 'Subscription status'
+            },
+            currentPeriodStart: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Current period start date'
+            },
+            currentPeriodEnd: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Current period end date'
+            },
+            cancelAtPeriodEnd: {
+              type: 'boolean',
+              description: 'Whether subscription cancels at period end'
+            },
+            isActive: {
+              type: 'boolean',
+              description: 'Whether subscription is active'
+            },
+            isInTrial: {
+              type: 'boolean',
+              description: 'Whether subscription is in trial'
+            },
+            daysUntilRenewal: {
+              type: 'number',
+              description: 'Days until next renewal'
+            }
+          }
+        },
+        Discount: {
+          type: 'object',
+          properties: {
+            _id: {
+              type: 'string',
+              description: 'Discount ID'
+            },
+            name: {
+              type: 'string',
+              description: 'Discount name'
+            },
+            description: {
+              type: 'string',
+              description: 'Discount description'
+            },
+            discountType: {
+              type: 'string',
+              enum: ['percentage', 'fixed'],
+              description: 'Type of discount'
+            },
+            discountValue: {
+              type: 'number',
+              description: 'Discount value'
+            },
+            couponCode: {
+              type: 'string',
+              description: 'Coupon code'
+            },
+            promoCode: {
+              type: 'string',
+              description: 'Promotional code'
+            },
+            isActive: {
+              type: 'boolean',
+              description: 'Whether discount is active'
+            },
+            usageLimit: {
+              type: 'number',
+              description: 'Maximum usage limit'
+            },
+            usedCount: {
+              type: 'number',
+              description: 'Current usage count'
+            },
+            startDate: {
+              type: 'string',
+              format: 'date',
+              description: 'Discount start date'
+            },
+            endDate: {
+              type: 'string',
+              format: 'date',
+              description: 'Discount end date'
+            },
+            stripeCouponId: {
+              type: 'string',
+              description: 'Stripe coupon ID'
+            },
+            stripePromoCodeId: {
+              type: 'string',
+              description: 'Stripe promotional code ID'
+            }
+          }
         }
       }
     },

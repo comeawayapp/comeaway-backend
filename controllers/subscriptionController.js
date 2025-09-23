@@ -1,63 +1,126 @@
 const Subscription = require("../models/Subscription");
 const User = require("../models/user");
+const stripeService = require("../services/stripeService");
 const emailService = require("../services/emailService");
 
-// Create a new subscription - SIMPLIFIED for mobile
+// Create a new subscription using Stripe
 exports.createSubscription = async (req, res) => {
   try {
-    const { plan } = req.body;
-    const userId = req.user && req.user._id;
+    const { priceId, couponCode, promoCode, trialPeriodDays } = req.body;
+    const userId = req.user._id;
     const user = await User.findById(userId);
-    console.log(user, "user");
 
-    if (!plan || !user) {
-      return res
-        .status(400)
-        .json({ message: "plan and auth token are required" });
-    }
-    if (!["monthly", "annual"].includes(plan)) {
-      return res.status(400).json({ message: "Invalid subscription plan" });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
     }
 
-    // Calculate the end date based on the plan
-    let endDate = new Date();
-    if (plan === "monthly") {
-      endDate.setMonth(endDate.getMonth() + 1);
-    } else if (plan === "annual") {
-      endDate.setFullYear(endDate.getFullYear() + 1);
+    if (!priceId) {
+      return res.status(400).json({ message: 'priceId is required' });
     }
 
-    // Create new subscription with active status
-    const newSubscription = new Subscription({
-      userId,
-      customer: user.stripeCustomerId,
-      name: user.firstname + " " + user.lastname,
-      plan,
-      endDate,
-      status: "active", // This is the key - status is active
+    // Validate price exists in Stripe
+    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    let price;
+    try {
+      price = await stripe.prices.retrieve(priceId);
+    } catch (error) {
+      return res.status(404).json({ error: "Price not found" });
+    }
+
+    // Check if user already has an active subscription
+    const existingSubscription = await Subscription.findOne({
+      userId: userId,
+      status: { $in: ['active', 'trialing'] }
     });
 
-    await newSubscription.save();
+    if (existingSubscription) {
+      return res.status(400).json({ 
+        message: 'User already has an active subscription',
+        existingSubscription: {
+          id: existingSubscription._id,
+          status: existingSubscription.status,
+          currentPeriodEnd: existingSubscription.currentPeriodEnd
+        }
+      });
+    }
 
-    // AUTOMATICALLY set isPro = true when subscription is active
-    await User.findByIdAndUpdate(userId, {
-      isPro: true,
-      proExpiresAt: endDate,
-    });
+    // Create or get Stripe customer
+    const customer = await stripeService.createOrGetCustomer(user);
 
-    console.log(
-      `✅ Subscription created - User ${userId} is now Pro until ${endDate}`
+    // Prepare subscription options
+    const options = {
+      metadata: {
+        userId: userId.toString(),
+        priceId: priceId
+      }
+    };
+
+    // Add trial period if specified
+    if (trialPeriodDays) {
+      options.trialPeriodDays = trialPeriodDays;
+    }
+
+    // Add discount if provided
+    if (couponCode) {
+      const couponValidation = await stripeService.validateCouponCode(couponCode);
+      if (couponValidation.valid) {
+        options.couponId = couponCode;
+      } else {
+        return res.status(400).json({ 
+          message: 'Invalid coupon code',
+          error: couponValidation.error 
+        });
+      }
+    }
+
+    if (promoCode) {
+      const promoValidation = await stripeService.validatePromoCode(promoCode);
+      if (promoValidation.valid) {
+        options.promoCodeId = promoValidation.promoCode.id;
+      } else {
+        return res.status(400).json({ 
+          message: 'Invalid promotional code',
+          error: promoValidation.error 
+        });
+      }
+    }
+
+    // Create Stripe subscription
+    const stripeSubscription = await stripeService.createSubscription(
+      customer.id, 
+      priceId, 
+      options
     );
 
-    // Simple success response
+    // Sync subscription to database
+    const subscription = await stripeService.syncSubscriptionToDatabase(
+      stripeSubscription, 
+      userId
+    );
+
+    console.log(
+      `✅ Subscription created - User ${userId} is now Pro until ${subscription.currentPeriodEnd}`
+    );
+
     res.status(201).json({
       message: "Subscription created successfully",
-      subscription: newSubscription,
-      success: true,
+      subscription: {
+        id: subscription._id,
+        stripeSubscriptionId: subscription.stripeSubscriptionId,
+        status: subscription.status,
+        currentPeriodEnd: subscription.currentPeriodEnd,
+        isActive: subscription.isActive
+      },
+      clientSecret: stripeSubscription.latest_invoice.payment_intent.client_secret,
+      success: true
     });
+
   } catch (error) {
     console.error("❌ Subscription creation error:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ 
+      message: "Server error", 
+      error: error.message 
+    });
   }
 };
 
@@ -180,11 +243,22 @@ exports.getSubscriptionByUserId = async (req, res) => {
     if (!userId || !userId.match(/^[0-9a-fA-F]{24}$/)) {
       return res.status(400).json({ message: "Invalid or missing userId" });
     }
-    const subscription = await Subscription.find({ userId: userId });
-    if (!subscription || !subscription.length) {
-      return res.status(200).json({ message: "No subscription found", subscription: [] });
+    
+    const subscriptions = await Subscription.find({ userId: userId })
+      .sort({ createdAt: -1 })
+      .populate('userId', 'firstname lastname email');
+      
+    if (!subscriptions || !subscriptions.length) {
+      return res.status(200).json({ 
+        message: "No subscription found", 
+        subscriptions: [] 
+      });
     }
-    res.status(200).json(subscription);
+    
+    res.status(200).json({
+      message: "Subscriptions retrieved successfully",
+      subscriptions: subscriptions
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -285,6 +359,7 @@ exports.renewSubscription = async (req, res) => {
 exports.cancelSubscription = async (req, res) => {
   try {
     const { subscriptionId } = req.params;
+    const { cancelAtPeriodEnd = true } = req.body;
     const userId = req.user && req.user._id;
 
     if (!subscriptionId || !userId) {
@@ -293,28 +368,57 @@ exports.cancelSubscription = async (req, res) => {
       });
     }
 
-    // Find and update subscription
-    const subscription = await Subscription.findOneAndUpdate(
-      { _id: subscriptionId, userId: userId },
-      { status: "inactive" },
-      { new: true }
-    );
+    // Find subscription
+    const subscription = await Subscription.findOne({
+      _id: subscriptionId, 
+      userId: userId
+    });
 
     if (!subscription) {
       return res.status(404).json({ message: "Subscription not found" });
     }
 
-    // Update user's Pro status to expire immediately
-    await User.findByIdAndUpdate(userId, {
-      isPro: false,
-      proExpiresAt: new Date(), // Set to current date to expire immediately
-    });
+    // Cancel subscription in Stripe
+    const stripeSubscription = await stripeService.cancelSubscription(
+      subscription.stripeSubscriptionId,
+      cancelAtPeriodEnd
+    );
+
+    // Update local subscription record
+    subscription.status = stripeSubscription.status;
+    subscription.cancelAtPeriodEnd = stripeSubscription.cancel_at_period_end;
+    subscription.canceledAt = stripeSubscription.canceled_at ? 
+      new Date(stripeSubscription.canceled_at * 1000) : null;
+    await subscription.save();
+
+    // Update user's Pro status
+    const updateData = {
+      subscriptionStatus: stripeSubscription.status
+    };
+
+    // If canceling immediately, set Pro status to false
+    if (!cancelAtPeriodEnd) {
+      updateData.isPro = false;
+      updateData.proExpiresAt = new Date();
+    }
+
+    await User.findByIdAndUpdate(userId, updateData);
 
     res.status(200).json({
-      message: "Subscription cancelled successfully",
-      subscription: subscription,
+      message: cancelAtPeriodEnd ? 
+        "Subscription will be cancelled at the end of the current period" :
+        "Subscription cancelled immediately",
+      subscription: {
+        id: subscription._id,
+        stripeSubscriptionId: subscription.stripeSubscriptionId,
+        status: subscription.status,
+        cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+        canceledAt: subscription.canceledAt,
+        currentPeriodEnd: subscription.currentPeriodEnd
+      }
     });
   } catch (error) {
+    console.error('Cancel subscription error:', error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -373,17 +477,19 @@ exports.getMySubscription = async (req, res) => {
     }
 
     // Get user details
-    const user = await User.findById(userId).select("isPro proExpiresAt");
+    const user = await User.findById(userId).select("isPro proExpiresAt subscriptionStatus subscriptionCurrentPeriodEnd stripeSubscriptionId");
 
     // Get active subscription
     const subscription = await Subscription.findOne({
       userId: userId,
-      status: "active",
-    }).sort({ endDate: -1 }); // Get the latest active subscription
+      status: { $in: ['active', 'trialing'] }
+    }).sort({ currentPeriodEnd: -1 }); // Get the latest active subscription
 
+    // Check if subscription is expired
     const currentDate = new Date();
-    const isExpired =
-      user.proExpiresAt ? currentDate > user.proExpiresAt : true;
+    const isExpired = subscription ? 
+      subscription.currentPeriodEnd < currentDate : 
+      (user.proExpiresAt ? currentDate > user.proExpiresAt : true);
 
     // Determine user type and activation method
     const userType = (user.isPro && !isExpired) ? "Pro" : "Standard";
@@ -392,10 +498,22 @@ exports.getMySubscription = async (req, res) => {
     res.status(200).json({
       isPro: user.isPro && !isExpired,
       proExpiresAt: user.proExpiresAt,
-      subscription: subscription,
+      subscription: subscription ? {
+        id: subscription._id,
+        stripeSubscriptionId: subscription.stripeSubscriptionId,
+        status: subscription.status,
+        currentPeriodStart: subscription.currentPeriodStart,
+        currentPeriodEnd: subscription.currentPeriodEnd,
+        cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+        isActive: subscription.isActive,
+        isInTrial: subscription.isInTrial,
+        daysUntilRenewal: subscription.getDaysUntilRenewal()
+      } : null,
       isExpired: isExpired,
       userType: userType,
       activationMethod: activationMethod,
+      subscriptionStatus: user.subscriptionStatus,
+      subscriptionCurrentPeriodEnd: user.subscriptionCurrentPeriodEnd
     });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });

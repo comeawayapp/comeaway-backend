@@ -39,6 +39,7 @@ app.use(cors({
 
 // Import conditional body parsing middleware
 const { conditionalBodyParsing, conditionalUrlEncoded } = require("./middleware/index");
+app.use("/api/stripe/webhook", require("./router/stripWebhook"));
 
 // Body parsing middleware with conditional skipping
 app.use(conditionalBodyParsing);
@@ -103,9 +104,8 @@ app.use("/api/playlists", require("./router/playlistRoutes"));
 app.use("/api/app-ratings", require("./router/appRatingRoutes"));
 app.use("/api/badges", require("./router/badgeRoutes"));
 app.use("/api/narrators", require("./router/narratorRoutes"));
-app.use("/api/prices", require("./router/priceRoutes"));
-app.use("/api/discounts", require("./router/discountRoutes"));
 app.use("/api/payments", require("./router/paymentRoute"));
+app.use("/api/stripe", require("./router/stripeRoutes"));
 app.use("/api/activation-codes", require("./router/activationCodeRoutes"));
 app.use("/api/emails", require("./router/emailRoutes"));
 

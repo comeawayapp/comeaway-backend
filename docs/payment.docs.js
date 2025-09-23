@@ -112,37 +112,3 @@
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-
-/**
- * @swagger
- * /api/payments/create-payment-intent:
- *   post:
- *     summary: Create a basic payment intent
- *     description: Creates a Stripe payment intent for basic payment processing without customer management or discount calculations.
- *     tags: [Payments]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/PaymentIntentRequest'
- *     responses:
- *       200:
- *         description: Payment intent created successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/PaymentIntentResponse'
- *       400:
- *         description: Bad request - invalid input
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       500:
- *         description: Server error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- */ 

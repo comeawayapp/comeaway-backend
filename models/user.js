@@ -25,7 +25,21 @@ const UserSchema = new mongoose.Schema(
     requestDeletionExpires: { type: Date }, // Account deletion OTP expiration time
     deletedAt: { type: Date }, // Soft delete timestamp
     deletionReason: { type: String }, // Reason for account deletion
-    stripeCustomerId: { type: String }, // Stripe customer ID
+    // Stripe integration fields
+    stripeCustomerId: { type: String, unique: true, sparse: true }, // Stripe customer ID
+    stripeSubscriptionId: { type: String }, // Active Stripe subscription ID
+    subscriptionStatus: { 
+      type: String, 
+      enum: ['active', 'canceled', 'past_due', 'unpaid', 'incomplete', 'trialing'],
+      default: null 
+    },
+    subscriptionCurrentPeriodEnd: { type: Date }, // When current subscription period ends
+    
+    // Legacy Pro status fields (kept for backward compatibility)
+    isPro: { type: Boolean, default: false }, // Pro subscription status
+    proExpiresAt: { type: Date }, // Pro subscription expiry
+    
+    // Social auth fields
     appleId: { type: String }, // Apple Sign In ID
     authProvider: { type: String, enum: ["email", "google", "facebook", "apple"], default: "email" }, // Authentication provider
   },
