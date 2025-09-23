@@ -69,11 +69,77 @@ const getPrices = async (req, res) => {
       });
     }
 
+    // Group prices by product and calculate discounts
+    const groupedPrices = {};
+    
+    result.prices.forEach(price => {
+      const productId = price.product.id;
+      const productName = price.product.name;
+      
+      if (!groupedPrices[productId]) {
+        groupedPrices[productId] = {
+          productId,
+          productName,
+          recurringPrices: [],
+          oneTimePrices: []
+        };
+      }
+      
+      if (price.type === 'recurring') {
+        groupedPrices[productId].recurringPrices.push(price);
+      } else if (price.type === 'one_time') {
+        groupedPrices[productId].oneTimePrices.push(price);
+      }
+    });
+
+    // Process each product group
+    const processedPrices = Object.values(groupedPrices).map(productGroup => {
+      const recurringPrices = productGroup.recurringPrices;
+      const oneTimePrices = productGroup.oneTimePrices;
+      
+      const planPrices = [];
+      
+      // Process recurring prices (base prices)
+      recurringPrices.forEach(recurringPrice => {
+        const basePrice = recurringPrice.unit_amount / 100; // Convert from cents
+        const interval = recurringPrice.recurring.interval;
+        const planType = interval === 'month' ? 'monthly' : 
+                        interval === 'year' ? 'annual' : 
+                        interval === 'day' ? 'daily' : interval;
+        
+        // Find matching discount prices (one_time prices for this product)
+        const availableDiscounts = oneTimePrices.map(discountPrice => {
+          const discountedPrice = discountPrice.unit_amount / 100;
+          const savings = basePrice - discountedPrice;
+          const discountValue = Math.round((savings / basePrice) * 100);
+          
+          return {
+            savings: savings,
+            discountedPrice: discountedPrice,
+            discountType: "percentage",
+            discountValue: discountValue,
+            priceId: discountPrice.id
+          };
+        });
+        
+        planPrices.push({
+          planType: planType,
+          basePrice: basePrice,
+          basePriceId: recurringPrice.id,
+          currency: recurringPrice.currency,
+          availableDiscounts: availableDiscounts,
+          // Include original Stripe data
+          ...recurringPrice
+        });
+      });
+      
+      return planPrices;
+    }).flat();
+
     res.status(200).json({
-      success: true,
-      prices: result.prices,
-      hasMore: result.hasMore,
-      count: result.prices.length
+      message: "Price with available discounts retrieved successfully",
+      prices: processedPrices,
+      count: processedPrices.length
     });
 
   } catch (error) {
