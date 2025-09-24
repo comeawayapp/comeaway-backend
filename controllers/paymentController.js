@@ -48,9 +48,9 @@ const createCheckoutSession = async (req, res) => {
       if (couponValidation.valid) {
         options.couponId = couponCode;
       } else {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: 'Invalid coupon code',
-          error: couponValidation.error 
+          error: couponValidation.error
         });
       }
     }
@@ -60,9 +60,9 @@ const createCheckoutSession = async (req, res) => {
       if (promoValidation.valid) {
         options.promoCodeId = promoValidation.promoCode.id;
       } else {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: 'Invalid promotional code',
-          error: promoValidation.error 
+          error: promoValidation.error
         });
       }
     }
@@ -79,9 +79,9 @@ const createCheckoutSession = async (req, res) => {
 
   } catch (error) {
     console.error('Checkout session error:', error);
-    res.status(500).json({ 
-      message: 'Server error', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Server error',
+      error: error.message
     });
   }
 };
@@ -93,7 +93,7 @@ const createCheckoutSession = async (req, res) => {
  */
 const createPaymentSheet = async (req, res) => {
   try {
-    const { priceId, userId, couponCode, promoCode } = req.body;
+    const { priceId, userId, couponCode, promoCode, trialDays = 0 } = req.body;
 
     // Validate required fields
     if (!userId) {
@@ -120,7 +120,6 @@ const createPaymentSheet = async (req, res) => {
     // Create or get Stripe customer
     const customer = await stripeService.createOrGetCustomer(user);
 
-
     // Create an ephemeral key for the customer
     const ephemeralKey = await stripe.ephemeralKeys.create(
       { customer: customer.id },
@@ -136,65 +135,94 @@ const createPaymentSheet = async (req, res) => {
       }
     };
 
-    // Add discount if provided
+    // Add trial period if specified
+    if (trialDays > 0) {
+      subscriptionOptions.trial_period_days = trialDays;
+    }
+
+    // FIXED: Add discount if provided - Use coupon ID, not name
     if (couponCode) {
       const couponValidation = await stripeService.validateCouponCode(couponCode);
       console.log(couponValidation, "couponValidation");
       if (couponValidation.valid) {
         subscriptionOptions.discounts = [{
-          coupon: couponCode
+          coupon: couponValidation.coupon.id  // Use coupon.id instead of coupon.name
         }];
+        console.log("Setting coupon discount:", subscriptionOptions.discounts);
       } else {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: 'Invalid coupon code',
-          error: couponValidation.error 
+          error: couponValidation.error
         });
       }
     }
 
+    // FIXED: Use discounts array for promo codes too
     if (promoCode) {
       const promoValidation = await stripeService.validatePromoCode(promoCode);
       if (promoValidation.valid) {
-        subscriptionOptions.promoCodeId = promoValidation.promoCode.id;
+        // If both coupon and promo code, promo code takes precedence
+        subscriptionOptions.discounts = [{
+          promotion_code: promoValidation.promoCode.id
+        }];
+        console.log("Setting promo code discount:", subscriptionOptions.discounts);
       } else {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: 'Invalid promotional code',
-          error: promoValidation.error 
+          error: promoValidation.error
         });
       }
     }
 
-    // Create subscription (not payment intent)
+    // Create subscription
     const subscription = await stripeService.createSubscription(
-      customer.id, 
-      priceId, 
+      customer.id,
+      priceId,
       subscriptionOptions
     );
 
-    // For incomplete subscriptions, we need to create a payment intent
-    // that will be used to collect payment and attach it to the subscription
     let paymentIntent = null;
+    let setupIntent = null;
 
-    if (subscription.status === 'incomplete') {
-      // Create a payment intent for the subscription amount
-      // This will be used to collect payment and attach it to the subscription
+    // Handle different subscription statuses
+    if (subscription.status === 'trialing') {
+      // For trial subscriptions, there might be a setup intent to collect payment method
+      setupIntent = subscription.pending_setup_intent;
+      console.log('Subscription is trialing, setup intent:', setupIntent?.id);
+    } else if (subscription.status === 'incomplete') {
+      // Get the actual amount to be charged (after discounts)
+      let amountToCharge = price.unit_amount;
+      
+      // CRITICAL FIX: Use the discounted amount from the invoice
+      if (subscription.latest_invoice) {
+        amountToCharge = subscription.latest_invoice.amount_due;
+        console.log(`Original amount: ${price.unit_amount}, Discounted amount: ${amountToCharge}`);
+      }
+
+      // Create payment intent with the correct (discounted) amount
       paymentIntent = await stripe.paymentIntents.create({
-        amount: price.unit_amount, // Already in cents from Stripe
+        amount: amountToCharge, // Use discounted amount
         currency: price.currency,
         customer: customer.id,
         payment_method_types: ['card'],
-        setup_future_usage: 'off_session', // Save payment method for future use
+        setup_future_usage: 'off_session',
         metadata: {
           userId: userId,
           subscriptionId: subscription.id,
           priceId: priceId,
-          type: 'subscription_setup'
+          type: 'subscription_setup',
+          // Include discount info in metadata
+          ...(subscription.discount && { 
+            discountApplied: true,
+            discountType: subscription.discount.coupon ? 'coupon' : 'promotion_code',
+            discountId: subscription.discount.coupon?.id || subscription.discount.promotion_code?.id
+          })
         }
       });
       console.log('Created payment intent for subscription setup:', paymentIntent.id);
-    } else {
-      // For active subscriptions, get the payment intent from the invoice
-      paymentIntent = subscription.latest_invoice.payment_intent;
+    } else if (subscription.status === 'active') {
+      // For active subscriptions, get payment intent from invoice
+      paymentIntent = subscription.latest_invoice?.payment_intent;
       console.log('Payment intent from subscription:', paymentIntent?.id);
     }
 
@@ -206,16 +234,42 @@ const createPaymentSheet = async (req, res) => {
       await stripeService.syncPaymentToDatabase(paymentIntent, userId, subscription.id);
     }
 
-    // Respond with the required parameters for the payment sheet
+    // Calculate discount information for response
+    let discountInfo = null;
+    if (subscription.discount) {
+      const discount = subscription.discount;
+      discountInfo = {
+        type: discount.coupon ? 'coupon' : 'promotion_code',
+        id: discount.coupon?.id || discount.promotion_code?.id,
+        name: discount.coupon?.name || discount.promotion_code?.code,
+        percentOff: discount.coupon?.percent_off || null,
+        amountOff: discount.coupon?.amount_off || null,
+        start: discount.start,
+        end: discount.end
+      };
+    }
+
+    // Enhanced response with discount information
     res.json({
       paymentIntent: paymentIntent ? paymentIntent.client_secret : null,
+      setupIntent: setupIntent ? setupIntent.client_secret : null,
       ephemeralKey: ephemeralKey.secret,
       customer: customer.id,
       publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || "",
       subscriptionId: subscription.id,
       subscriptionStatus: subscription.status,
-      hasPaymentIntent: !!paymentIntent
+      hasPaymentIntent: !!paymentIntent,
+      hasSetupIntent: !!setupIntent,
+      // Include pricing and discount information
+      originalAmount: price.unit_amount,
+      finalAmount: subscription.latest_invoice?.amount_due || price.unit_amount,
+      currency: price.currency,
+      discountApplied: discountInfo,
+      // Trial information
+      trialEnd: subscription.trial_end,
+      isTrialing: subscription.status === 'trialing'
     });
+
   } catch (error) {
     console.error("Error creating payment sheet params:", error);
     res.status(500).json({ error: error.message });
@@ -233,9 +287,9 @@ const getPaymentStatus = async (req, res) => {
     const userId = req.user._id;
 
     // Get payment from database
-    const payment = await Payment.findOne({ 
+    const payment = await Payment.findOne({
       stripePaymentIntentId: paymentIntentId,
-      userId: userId 
+      userId: userId
     });
 
     if (!payment) {
@@ -260,9 +314,9 @@ const getPaymentStatus = async (req, res) => {
 
   } catch (error) {
     console.error('Get payment status error:', error);
-    res.status(500).json({ 
-      message: 'Server error', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Server error',
+      error: error.message
     });
   }
 };
@@ -303,9 +357,9 @@ const getPaymentHistory = async (req, res) => {
 
   } catch (error) {
     console.error('Get payment history error:', error);
-    res.status(500).json({ 
-      message: 'Server error', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Server error',
+      error: error.message
     });
   }
 };

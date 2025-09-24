@@ -27,33 +27,55 @@ class StripeService {
   }
 
   // Create subscription
-  async createSubscription(customerId, priceId, options = {}) {
-    const subscriptionData = {
-      customer: customerId,
-      items: [{ price: priceId }],
-      payment_behavior: 'default_incomplete',
-      payment_settings: { save_default_payment_method: 'on_subscription' },
-      expand: ['latest_invoice.payment_intent'],
-      metadata: options.metadata || {}
-    };
+// Updated Stripe Service - createSubscription method
+async createSubscription(customerId, priceId, options = {}) {
+  const subscriptionData = {
+    customer: customerId,
+    items: [{ price: priceId }],
+    payment_behavior: 'default_incomplete',
+    payment_settings: { save_default_payment_method: 'on_subscription' },
+    expand: ['latest_invoice.payment_intent', 'pending_setup_intent'], // Added pending_setup_intent for trials
+    metadata: options.metadata || {}
+  };
 
-    // Add trial period if specified
-    if (options.trialPeriodDays) {
-      subscriptionData.trial_period_days = options.trialPeriodDays;
-    }
-
-    // Add coupon if specified
-    if (options.couponId) {
-      subscriptionData.coupon = options.couponId;
-    }
-
-    // Add promotion code if specified
-    if (options.promoCodeId) {
-      subscriptionData.promotion_code = options.promoCodeId;
-    }
-
-    return await stripe.subscriptions.create(subscriptionData);
+  // Add trial period if specified
+  if (options.trialPeriodDays || options.trial_period_days) {
+    subscriptionData.trial_period_days = options.trialPeriodDays || options.trial_period_days;
   }
+
+  // UPDATED: Use discounts array instead of deprecated coupon parameter
+  if (options.couponId || options.discounts) {
+    if (options.discounts) {
+      // If discounts array is provided directly, use it
+      subscriptionData.discounts = options.discounts;
+    } else if (options.couponId) {
+      // Convert legacy couponId to discounts array
+      subscriptionData.discounts = [{ coupon: options.couponId }];
+    }
+  }
+
+  // UPDATED: Use discounts array for promo codes too
+  if (options.promoCodeId && !subscriptionData.discounts) {
+    subscriptionData.discounts = [{ promotion_code: options.promoCodeId }];
+  }
+
+  console.log('Creating subscription with data:', JSON.stringify(subscriptionData, null, 2));
+
+  try {
+    const subscription = await stripe.subscriptions.create(subscriptionData);
+    console.log('Subscription created:', {
+      id: subscription.id,
+      status: subscription.status,
+      discount: subscription.discount,
+      amount_due: subscription.latest_invoice?.amount_due,
+      ...subscription
+    });
+    return subscription;
+  } catch (error) {
+    console.error('Error creating subscription:', error);
+    throw error;
+  }
+}
 
   // Create checkout session for subscription
   async createCheckoutSession(customerId, priceId, options = {}) {
