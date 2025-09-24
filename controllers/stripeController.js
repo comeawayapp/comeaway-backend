@@ -92,12 +92,72 @@ const getPrices = async (req, res) => {
       }
     });
 
+    // Get all coupons and promotional codes
+    const couponsResult = await stripeService.getCoupons({ limit: 100 });
+    const promoCodesResult = await stripeService.getPromoCodes({ limit: 100 });
+
+    console.log(couponsResult, " couponsResult");
     // Process each product group
     const processedPrices = Object.values(groupedPrices).map(productGroup => {
       const recurringPrices = productGroup.recurringPrices;
       const oneTimePrices = productGroup.oneTimePrices;
       
       const planPrices = [];
+      
+      // Find coupons associated with this product
+      const associatedCoupons = [];
+      const associatedPromoCodes = [];
+
+      if (couponsResult.success) {
+        // Filter coupons that might be associated with this product
+        associatedCoupons.push(...couponsResult.coupons.filter(coupon => {
+          // Check if coupon metadata contains product info
+          const hasMetadataMatch = coupon.metadata && (
+            coupon.metadata.productId === productGroup.productId ||
+            coupon.metadata.productName === productGroup.productName ||
+            coupon.metadata.planType === 'monthly'
+          );
+          
+          // If no metadata match, try to match by coupon name or other criteria
+          const hasNameMatch = coupon.name && (
+            // Match monthly-related coupons to monthly products
+            (productGroup.productName.toLowerCase().includes('monthly') && 
+             (coupon.name.toLowerCase().includes('monthly') || 
+              coupon.name.toLowerCase().includes('month'))) ||
+            // Match general coupons to all products
+            coupon.name.toLowerCase().includes('first timer') ||
+            coupon.name.toLowerCase().includes('discount')
+          );
+          
+          return hasMetadataMatch || hasNameMatch;
+        }));
+      }
+
+      if (promoCodesResult.success) {
+        // Filter promotional codes that might be associated with this product
+        associatedPromoCodes.push(...promoCodesResult.promoCodes.filter(promoCode => {
+          // Check if promo code metadata contains product info
+          const hasMetadataMatch = promoCode.metadata && (
+            promoCode.metadata.productId === productGroup.productId ||
+            promoCode.metadata.productName === productGroup.productName ||
+            promoCode.metadata.planType === 'monthly'
+          );
+          
+          // If no metadata match, try to match by promo code name or other criteria
+          const hasNameMatch = promoCode.code && (
+            // Match monthly-related promo codes to monthly products
+            (productGroup.productName.toLowerCase().includes('monthly') && 
+             (promoCode.code.toLowerCase().includes('monthly') || 
+              promoCode.code.toLowerCase().includes('month'))) ||
+            // Match general promo codes to all products
+            promoCode.code.toLowerCase().includes('first') ||
+            promoCode.code.toLowerCase().includes('discount') ||
+            promoCode.code.toLowerCase().includes('save')
+          );
+          
+          return hasMetadataMatch || hasNameMatch;
+        }));
+      }
       
       // Process recurring prices (base prices)
       recurringPrices.forEach(recurringPrice => {
@@ -107,18 +167,34 @@ const getPrices = async (req, res) => {
                         interval === 'year' ? 'annual' : 
                         interval === 'day' ? 'daily' : interval;
         
-        // Find matching discount prices (one_time prices for this product)
-        const availableDiscounts = oneTimePrices.map(discountPrice => {
-          const discountedPrice = discountPrice.unit_amount / 100;
-          const savings = basePrice - discountedPrice;
-          const discountValue = Math.round((savings / basePrice) * 100);
+        // Calculate available discounts from coupons instead of one-time prices
+        const availableDiscounts = associatedCoupons.map(coupon => {
+          let savings = 0;
+          let discountedPrice = basePrice;
+          let discountValue = 0;
+          
+          if (coupon.percent_off) {
+            // Percentage discount
+            discountValue = coupon.percent_off;
+            savings = (basePrice * coupon.percent_off) / 100;
+            discountedPrice = basePrice - savings;
+          } else if (coupon.amount_off) {
+            // Fixed amount discount
+            savings = coupon.amount_off / 100; // Convert from cents
+            discountedPrice = basePrice - savings;
+            discountValue = Math.round((savings / basePrice) * 100);
+          }
           
           return {
-            savings: savings,
-            discountedPrice: discountedPrice,
-            discountType: "percentage",
+            savings: Math.round(savings * 100) / 100, // Round to 2 decimal places
+            discountedPrice: Math.round(discountedPrice * 100) / 100,
+            discountType: coupon.percent_off ? "percentage" : "fixed_amount",
             discountValue: discountValue,
-            priceId: discountPrice.id
+            priceId: coupon.id, // This is the coupon ID that will be used in payment intent
+            couponName: coupon.name,
+            valid: coupon.valid,
+            timesRedeemed: coupon.times_redeemed,
+            maxRedemptions: coupon.max_redemptions
           };
         });
         
@@ -127,7 +203,11 @@ const getPrices = async (req, res) => {
           basePrice: basePrice,
           basePriceId: recurringPrice.id,
           currency: recurringPrice.currency,
+          productId: productGroup.productId,
+          productName: productGroup.productName,
           availableDiscounts: availableDiscounts,
+          coupons: associatedCoupons,
+          promoCodes: associatedPromoCodes,
           // Include original Stripe data
           ...recurringPrice
         });
@@ -229,10 +309,133 @@ const syncProducts = async (req, res) => {
   }
 };
 
+/**
+ * Controller to validate a coupon code
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ */
+const validateCoupon = async (req, res) => {
+  try {
+    const { couponCode } = req.body;
+
+    if (!couponCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Coupon code is required'
+      });
+    }
+
+    const validation = await stripeService.validateCouponCode(couponCode);
+
+    res.status(200).json({
+      success: true,
+      valid: validation.valid,
+      coupon: validation.coupon,
+      message: validation.valid ? 'Coupon is valid' : 'Invalid coupon code'
+    });
+
+  } catch (error) {
+    console.error('Validate coupon error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to validate coupon',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Controller to get all coupons
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ */
+const getCoupons = async (req, res) => {
+  try {
+    const { limit, starting_after, ending_before } = req.query;
+    
+    const options = {
+      limit: limit ? parseInt(limit) : 100,
+      starting_after: starting_after,
+      ending_before: ending_before
+    };
+
+    const result = await stripeService.getCoupons(options);
+    
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch coupons',
+        error: result.error
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      coupons: result.coupons,
+      hasMore: result.hasMore,
+      count: result.coupons.length
+    });
+
+  } catch (error) {
+    console.error('Get coupons error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Controller to get all promotional codes
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ */
+const getPromoCodes = async (req, res) => {
+  try {
+    const { limit, active, coupon, code } = req.query;
+    
+    const options = {
+      limit: limit ? parseInt(limit) : 100,
+      active: active !== undefined ? active === 'true' : undefined,
+      coupon: coupon,
+      code: code
+    };
+
+    const result = await stripeService.getPromoCodes(options);
+    
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch promotional codes',
+        error: result.error
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      promoCodes: result.promoCodes,
+      hasMore: result.hasMore,
+      count: result.promoCodes.length
+    });
+
+  } catch (error) {
+    console.error('Get promotional codes error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
 
 module.exports = {
   getProducts,
   getPrices,
   getProductsWithPrices,
-  syncProducts
+  syncProducts,
+  validateCoupon,
+  getCoupons,
+  getPromoCodes
 };

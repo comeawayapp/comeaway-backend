@@ -449,29 +449,103 @@
  *                         example: "Monthly Premium Subscription"
  *                       availableDiscounts:
  *                         type: array
- *                         description: Available discount options for this plan
+ *                         description: Available coupon discounts for this plan
  *                         items:
  *                           type: object
  *                           properties:
  *                             savings:
  *                               type: number
  *                               description: Amount saved in currency units
- *                               example: 1
+ *                               example: 0.40
  *                             discountedPrice:
  *                               type: number
  *                               description: Price after discount
- *                               example: 2.99
+ *                               example: 3.59
  *                             discountType:
  *                               type: string
+ *                               enum: [percentage, fixed_amount]
  *                               example: "percentage"
  *                             discountValue:
  *                               type: number
- *                               description: Discount percentage
- *                               example: 25
+ *                               description: Discount percentage or fixed amount
+ *                               example: 10
  *                             priceId:
  *                               type: string
- *                               description: Stripe price ID for the discounted price
- *                               example: "price_1SAd1kFz7ul9ct4gI2U3qEEM"
+ *                               description: Stripe coupon ID to use in payment intent (field name kept as priceId for compatibility)
+ *                               example: "z735WvA4"
+ *                             couponName:
+ *                               type: string
+ *                               description: Human-readable coupon name
+ *                               example: "first timer"
+ *                             valid:
+ *                               type: boolean
+ *                               description: Whether the coupon is currently valid
+ *                               example: true
+ *                             timesRedeemed:
+ *                               type: number
+ *                               description: Number of times this coupon has been used
+ *                               example: 0
+ *                             maxRedemptions:
+ *                               type: number
+ *                               description: Maximum number of redemptions allowed (null for unlimited)
+ *                               example: 100
+ *                       coupons:
+ *                         type: array
+ *                         description: Coupons associated with this monthly plan
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: string
+ *                               example: "SAVE20"
+ *                             duration:
+ *                               type: string
+ *                               enum: [forever, once, repeating]
+ *                               example: "once"
+ *                             amount_off:
+ *                               type: number
+ *                               description: Fixed amount off in cents
+ *                               example: 2000
+ *                             percent_off:
+ *                               type: number
+ *                               description: Percentage off
+ *                               example: 20
+ *                             currency:
+ *                               type: string
+ *                               example: "usd"
+ *                             valid:
+ *                               type: boolean
+ *                               example: true
+ *                             times_redeemed:
+ *                               type: number
+ *                               example: 0
+ *                             max_redemptions:
+ *                               type: number
+ *                               example: 100
+ *                       promoCodes:
+ *                         type: array
+ *                         description: Promotional codes associated with this monthly plan
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: string
+ *                               example: "promo_1234567890"
+ *                             code:
+ *                               type: string
+ *                               example: "SUMMER2024"
+ *                             active:
+ *                               type: boolean
+ *                               example: true
+ *                             coupon:
+ *                               type: string
+ *                               example: "SAVE20"
+ *                             times_redeemed:
+ *                               type: number
+ *                               example: 0
+ *                             max_redemptions:
+ *                               type: number
+ *                               example: 100
  *                 count:
  *                   type: integer
  *                   description: Number of monthly plans returned
@@ -540,6 +614,46 @@
  *                         type: array
  *                         items:
  *                           type: object
+ *                       coupons:
+ *                         type: array
+ *                         description: Coupons associated with this product
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: string
+ *                             duration:
+ *                               type: string
+ *                             amount_off:
+ *                               type: number
+ *                             percent_off:
+ *                               type: number
+ *                             currency:
+ *                               type: string
+ *                             valid:
+ *                               type: boolean
+ *                             times_redeemed:
+ *                               type: number
+ *                             max_redemptions:
+ *                               type: number
+ *                       promoCodes:
+ *                         type: array
+ *                         description: Promotional codes associated with this product
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: string
+ *                             code:
+ *                               type: string
+ *                             active:
+ *                               type: boolean
+ *                             coupon:
+ *                               type: string
+ *                             times_redeemed:
+ *                               type: number
+ *                             max_redemptions:
+ *                               type: number
  *                 count:
  *                   type: integer
  *       500:
@@ -569,6 +683,258 @@
  *                     type: object
  *                 count:
  *                   type: integer
+ *       500:
+ *         description: Server error
+ */
+/**
+ * @swagger
+ * /api/stripe/validate-coupon:
+ *   post:
+ *     summary: Validate a coupon code
+ *     description: Validates a Stripe coupon code and returns coupon details if valid
+ *     tags: [Stripe Products]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - couponCode
+ *             properties:
+ *               couponCode:
+ *                 type: string
+ *                 description: The coupon code to validate
+ *                 example: "SAVE20"
+ *     responses:
+ *       200:
+ *         description: Coupon validation result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 valid:
+ *                   type: boolean
+ *                   description: Whether the coupon is valid
+ *                   example: true
+ *                 coupon:
+ *                   type: object
+ *                   description: Coupon details if valid
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: "SAVE20"
+ *                     duration:
+ *                       type: string
+ *                       enum: [forever, once, repeating]
+ *                       example: "once"
+ *                     amount_off:
+ *                       type: number
+ *                       description: Fixed amount off in cents
+ *                       example: 2000
+ *                     percent_off:
+ *                       type: number
+ *                       description: Percentage off
+ *                       example: 20
+ *                     currency:
+ *                       type: string
+ *                       example: "usd"
+ *                     valid:
+ *                       type: boolean
+ *                       example: true
+ *                     times_redeemed:
+ *                       type: number
+ *                       example: 0
+ *                     max_redemptions:
+ *                       type: number
+ *                       example: 100
+ *                 message:
+ *                   type: string
+ *                   example: "Coupon is valid"
+ *       400:
+ *         description: Bad request - missing coupon code
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Coupon code is required"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Failed to validate coupon"
+ *                 error:
+ *                   type: string
+ *                   example: "Error message details"
+ */
+/**
+ * @swagger
+ * /api/stripe/coupons:
+ *   get:
+ *     summary: Get all coupons
+ *     description: Retrieves all Stripe coupons with optional filtering
+ *     tags: [Stripe Products]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Number of coupons to return (default 100)
+ *       - in: query
+ *         name: starting_after
+ *         schema:
+ *           type: string
+ *         description: Cursor for pagination - start after this coupon ID
+ *       - in: query
+ *         name: ending_before
+ *         schema:
+ *           type: string
+ *         description: Cursor for pagination - end before this coupon ID
+ *     responses:
+ *       200:
+ *         description: Coupons retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 coupons:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         example: "SAVE20"
+ *                       duration:
+ *                         type: string
+ *                         enum: [forever, once, repeating]
+ *                         example: "once"
+ *                       amount_off:
+ *                         type: number
+ *                         description: Fixed amount off in cents
+ *                         example: 2000
+ *                       percent_off:
+ *                         type: number
+ *                         description: Percentage off
+ *                         example: 20
+ *                       currency:
+ *                         type: string
+ *                         example: "usd"
+ *                       valid:
+ *                         type: boolean
+ *                         example: true
+ *                       times_redeemed:
+ *                         type: number
+ *                         example: 0
+ *                       max_redemptions:
+ *                         type: number
+ *                         example: 100
+ *                 hasMore:
+ *                   type: boolean
+ *                   example: false
+ *                 count:
+ *                   type: integer
+ *                   example: 5
+ *       500:
+ *         description: Server error
+ */
+/**
+ * @swagger
+ * /api/stripe/promo-codes:
+ *   get:
+ *     summary: Get all promotional codes
+ *     description: Retrieves all Stripe promotional codes with optional filtering
+ *     tags: [Stripe Products]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Number of promotional codes to return (default 100)
+ *       - in: query
+ *         name: active
+ *         schema:
+ *           type: boolean
+ *         description: Filter by active status
+ *       - in: query
+ *         name: coupon
+ *         schema:
+ *           type: string
+ *         description: Filter by coupon ID
+ *       - in: query
+ *         name: code
+ *         schema:
+ *           type: string
+ *         description: Filter by promotional code
+ *     responses:
+ *       200:
+ *         description: Promotional codes retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 promoCodes:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         example: "promo_1234567890"
+ *                       code:
+ *                         type: string
+ *                         example: "SUMMER2024"
+ *                       active:
+ *                         type: boolean
+ *                         example: true
+ *                       coupon:
+ *                         type: string
+ *                         example: "SAVE20"
+ *                       times_redeemed:
+ *                         type: number
+ *                         example: 0
+ *                       max_redemptions:
+ *                         type: number
+ *                         example: 100
+ *                       restrictions:
+ *                         type: object
+ *                         properties:
+ *                           minimum_amount:
+ *                             type: number
+ *                           minimum_amount_currency:
+ *                             type: string
+ *                 hasMore:
+ *                   type: boolean
+ *                   example: false
+ *                 count:
+ *                   type: integer
+ *                   example: 3
  *       500:
  *         description: Server error
  */

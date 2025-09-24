@@ -326,7 +326,71 @@ class StripeService {
     }
   }
 
-  // Fetch products with their prices
+  // Fetch coupons
+  async getCoupons(options = {}) {
+    try {
+      const params = {
+        limit: options.limit || 100
+      };
+
+      if (options.starting_after) {
+        params.starting_after = options.starting_after;
+      }
+
+      if (options.ending_before) {
+        params.ending_before = options.ending_before;
+      }
+
+      const coupons = await stripe.coupons.list(params);
+      return {
+        success: true,
+        coupons: coupons.data,
+        hasMore: coupons.has_more
+      };
+    } catch (error) {
+      console.error('Error fetching coupons:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Fetch promotional codes
+  async getPromoCodes(options = {}) {
+    try {
+      const params = {
+        limit: options.limit || 100
+      };
+
+      if (options.active !== undefined) {
+        params.active = options.active;
+      }
+
+      if (options.coupon) {
+        params.coupon = options.coupon;
+      }
+
+      if (options.code) {
+        params.code = options.code;
+      }
+
+      const promoCodes = await stripe.promotionCodes.list(params);
+      return {
+        success: true,
+        promoCodes: promoCodes.data,
+        hasMore: promoCodes.has_more
+      };
+    } catch (error) {
+      console.error('Error fetching promotional codes:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Fetch products with their prices and associated coupons
   async getProductsWithPrices(options = {}) {
     try {
       const productsResult = await this.getProducts(options);
@@ -337,15 +401,77 @@ class StripeService {
       const products = productsResult.products;
       const productsWithPrices = [];
 
+      // Get all coupons and promotional codes
+      const couponsResult = await this.getCoupons({ limit: 100 });
+      const promoCodesResult = await this.getPromoCodes({ limit: 100 });
+
       for (const product of products) {
         const pricesResult = await this.getPrices({
           product: product.id,
           active: options.active
         });
 
+        // Find coupons associated with this product
+        // We'll look for coupons that have metadata or are associated with this product
+        const associatedCoupons = [];
+        const associatedPromoCodes = [];
+
+        if (couponsResult.success) {
+          // Filter coupons that might be associated with this product
+          associatedCoupons.push(...couponsResult.coupons.filter(coupon => {
+            // Check if coupon metadata contains product info
+            const hasMetadataMatch = coupon.metadata && (
+              coupon.metadata.productId === product.id ||
+              coupon.metadata.productName === product.name ||
+              coupon.metadata.planType === product.metadata?.planType
+            );
+            
+            // If no metadata match, try to match by coupon name or other criteria
+            const hasNameMatch = coupon.name && (
+              // Match monthly-related coupons to monthly products
+              (product.name.toLowerCase().includes('monthly') && 
+               (coupon.name.toLowerCase().includes('monthly') || 
+                coupon.name.toLowerCase().includes('month'))) ||
+              // Match general coupons to all products
+              coupon.name.toLowerCase().includes('first timer') ||
+              coupon.name.toLowerCase().includes('discount')
+            );
+            
+            return hasMetadataMatch || hasNameMatch;
+          }));
+        }
+
+        if (promoCodesResult.success) {
+          // Filter promotional codes that might be associated with this product
+          associatedPromoCodes.push(...promoCodesResult.promoCodes.filter(promoCode => {
+            // Check if promo code metadata contains product info
+            const hasMetadataMatch = promoCode.metadata && (
+              promoCode.metadata.productId === product.id ||
+              promoCode.metadata.productName === product.name ||
+              promoCode.metadata.planType === product.metadata?.planType
+            );
+            
+            // If no metadata match, try to match by promo code name or other criteria
+            const hasNameMatch = promoCode.code && (
+              // Match monthly-related promo codes to monthly products
+              (product.name.toLowerCase().includes('monthly') && 
+               (promoCode.code.toLowerCase().includes('monthly') || 
+                promoCode.code.toLowerCase().includes('month'))) ||
+              // Match general promo codes to all products
+              promoCode.code.toLowerCase().includes('first') ||
+              promoCode.code.toLowerCase().includes('discount') ||
+              promoCode.code.toLowerCase().includes('save')
+            );
+            
+            return hasMetadataMatch || hasNameMatch;
+          }));
+        }
+
         productsWithPrices.push({
           ...product,
-          prices: pricesResult.success ? pricesResult.prices : []
+          prices: pricesResult.success ? pricesResult.prices : [],
+          coupons: associatedCoupons,
+          promoCodes: associatedPromoCodes
         });
       }
 
