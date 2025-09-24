@@ -384,9 +384,10 @@
  */
 /**
  * @swagger
- * /api/stripe/prices:
+ * /api/stripe/prices/plan/monthly/with-available-discounts:
  *   get:
- *     summary: Get Stripe prices
+ *     summary: Get monthly plan prices with available discounts
+ *     description: Retrieves all monthly subscription plans with their available discount options
  *     tags: [Stripe Products]
  *     parameters:
  *       - in: query
@@ -398,25 +399,85 @@
  *         name: product
  *         schema:
  *           type: string
- *         description: Filter by product ID
- *       - in: query
- *         name: type
- *         schema:
- *           type: string
- *         description: Filter by price type (one_time, recurring)
+ *         description: Filter by specific product ID
  *       - in: query
  *         name: currency
  *         schema:
  *           type: string
- *         description: Filter by currency (e.g., usd, eur)
+ *         description: Filter by currency (e.g., usd, eur, cad)
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
- *         description: Number of prices to return (default 100)
+ *         description: Number of plans to return (default 100)
  *     responses:
  *       200:
- *         description: Prices retrieved successfully
+ *         description: Monthly plan prices with discounts retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Monthly plan prices with available discounts retrieved successfully"
+ *                 plans:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       planType:
+ *                         type: string
+ *                         example: "monthly"
+ *                       basePrice:
+ *                         type: number
+ *                         description: Base monthly price
+ *                         example: 3.99
+ *                       basePriceId:
+ *                         type: string
+ *                         description: Stripe price ID for the base monthly plan
+ *                         example: "price_1SAbi9Fz7ul9ct4gi4IuFyI1"
+ *                       currency:
+ *                         type: string
+ *                         example: "cad"
+ *                       productId:
+ *                         type: string
+ *                         description: Stripe product ID
+ *                         example: "prod_T6pMYRHk68V5iJ"
+ *                       productName:
+ *                         type: string
+ *                         example: "Monthly Premium Subscription"
+ *                       availableDiscounts:
+ *                         type: array
+ *                         description: Available discount options for this plan
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             savings:
+ *                               type: number
+ *                               description: Amount saved in currency units
+ *                               example: 1
+ *                             discountedPrice:
+ *                               type: number
+ *                               description: Price after discount
+ *                               example: 2.99
+ *                             discountType:
+ *                               type: string
+ *                               example: "percentage"
+ *                             discountValue:
+ *                               type: number
+ *                               description: Discount percentage
+ *                               example: 25
+ *                             priceId:
+ *                               type: string
+ *                               description: Stripe price ID for the discounted price
+ *                               example: "price_1SAd1kFz7ul9ct4gI2U3qEEM"
+ *                 count:
+ *                   type: integer
+ *                   description: Number of monthly plans returned
+ *                   example: 1
+ *       500:
+ *         description: Server error
  *         content:
  *           application/json:
  *             schema:
@@ -424,16 +485,13 @@
  *               properties:
  *                 success:
  *                   type: boolean
- *                 prices:
- *                   type: array
- *                   items:
- *                     type: object
- *                 hasMore:
- *                   type: boolean
- *                 count:
- *                   type: integer
- *       500:
- *         description: Server error
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Server error"
+ *                 error:
+ *                   type: string
+ *                   example: "Error message details"
  */
 /**
  * @swagger
