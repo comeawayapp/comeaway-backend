@@ -102,6 +102,14 @@ exports.createSubscription = async (req, res) => {
       `✅ Subscription created - User ${userId} is now Pro until ${subscription.currentPeriodEnd}`
     );
 
+    // Get client secret safely
+    let clientSecret = null;
+    if (stripeSubscription.latest_invoice && 
+        stripeSubscription.latest_invoice.payment_intent && 
+        stripeSubscription.latest_invoice.payment_intent.client_secret) {
+      clientSecret = stripeSubscription.latest_invoice.payment_intent.client_secret;
+    }
+
     res.status(201).json({
       message: "Subscription created successfully",
       subscription: {
@@ -111,7 +119,7 @@ exports.createSubscription = async (req, res) => {
         currentPeriodEnd: subscription.currentPeriodEnd,
         isActive: subscription.isActive
       },
-      clientSecret: stripeSubscription.latest_invoice.payment_intent.client_secret,
+      clientSecret: clientSecret,
       success: true
     });
 
