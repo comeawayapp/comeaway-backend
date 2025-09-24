@@ -139,8 +139,11 @@ const createPaymentSheet = async (req, res) => {
     // Add discount if provided
     if (couponCode) {
       const couponValidation = await stripeService.validateCouponCode(couponCode);
+      console.log(couponValidation, "couponValidation");
       if (couponValidation.valid) {
-        subscriptionOptions.couponId = couponCode;
+        subscriptionOptions.discounts = [{
+          coupon: couponCode
+        }];
       } else {
         return res.status(400).json({ 
           message: 'Invalid coupon code',
@@ -167,15 +170,6 @@ const createPaymentSheet = async (req, res) => {
       priceId, 
       subscriptionOptions
     );
-    console.log(subscription, "subscription");
-
-    console.log('Created subscription:', {
-      id: subscription.id,
-      status: subscription.status,
-      current_period_start: subscription.current_period_start,
-      current_period_end: subscription.current_period_end,
-      latest_invoice: subscription.latest_invoice ? subscription.latest_invoice.id : 'No invoice yet'
-    });
 
     // For incomplete subscriptions, we need to create a payment intent
     // that will be used to collect payment and attach it to the subscription
