@@ -42,11 +42,13 @@ const createCheckoutSession = async (req, res) => {
       }
     };
 
-    // Add discount if provided
+    // Add discount if provided - Enhanced coupon flow
     if (couponCode) {
       const couponValidation = await stripeService.validateCouponCode(couponCode);
+      console.log(couponValidation, "couponValidation");
       if (couponValidation.valid) {
-        options.couponId = couponCode;
+        options.couponId = couponValidation.coupon.id; // Use coupon.id instead of couponCode
+        console.log("Setting coupon for checkout session:", options.couponId);
       } else {
         return res.status(400).json({
           message: 'Invalid coupon code',
@@ -59,6 +61,7 @@ const createCheckoutSession = async (req, res) => {
       const promoValidation = await stripeService.validatePromoCode(promoCode);
       if (promoValidation.valid) {
         options.promoCodeId = promoValidation.promoCode.id;
+        console.log("Setting promo code for checkout session:", options.promoCodeId);
       } else {
         return res.status(400).json({
           message: 'Invalid promotional code',
@@ -74,7 +77,12 @@ const createCheckoutSession = async (req, res) => {
     res.status(200).json({
       sessionId: session.id,
       url: session.url,
-      success: true
+      success: true,
+      // Include discount information if applied
+      discountApplied: options.couponId || options.promoCodeId ? {
+        type: options.couponId ? 'coupon' : 'promotion_code',
+        id: options.couponId || options.promoCodeId
+      } : null
     });
 
   } catch (error) {
@@ -181,6 +189,22 @@ const createPaymentSheet = async (req, res) => {
       subscriptionOptions
     );
 
+    // Debug: Log subscription details
+    console.log('=== SUBSCRIPTION CREATED ===');
+    console.log('Subscription ID:', subscription.id);
+    console.log('Status:', subscription.status);
+    console.log('Latest Invoice:', subscription.latest_invoice ? {
+      id: subscription.latest_invoice.id,
+      amount_due: subscription.latest_invoice.amount_due,
+      payment_intent: subscription.latest_invoice.payment_intent ? {
+        id: subscription.latest_invoice.payment_intent.id,
+        status: subscription.latest_invoice.payment_intent.status,
+        client_secret: subscription.latest_invoice.payment_intent.client_secret ? 'present' : 'missing'
+      } : 'NO PAYMENT INTENT'
+    } : 'NO INVOICE');
+    console.log('Discount:', subscription.discount);
+    console.log('=== END SUBSCRIPTION DEBUG ===');
+
     let paymentIntent = null;
     let setupIntent = null;
 
@@ -190,36 +214,16 @@ const createPaymentSheet = async (req, res) => {
       setupIntent = subscription.pending_setup_intent;
       console.log('Subscription is trialing, setup intent:', setupIntent?.id);
     } else if (subscription.status === 'incomplete') {
-      // Get the actual amount to be charged (after discounts)
-      let amountToCharge = price.unit_amount;
+      // FIXED: Use the payment intent that Stripe already created for the subscription
+      // Don't create a new one - this was causing duplicate payment intents
+      paymentIntent = subscription.latest_invoice?.payment_intent;
+      console.log('Using existing payment intent from subscription:', paymentIntent?.id);
       
-      // CRITICAL FIX: Use the discounted amount from the invoice
-      if (subscription.latest_invoice) {
-        amountToCharge = subscription.latest_invoice.amount_due;
-        console.log(`Original amount: ${price.unit_amount}, Discounted amount: ${amountToCharge}`);
+      if (!paymentIntent) {
+        console.log('No payment intent found in subscription - this should not happen with default_incomplete_payment_behavior');
+        // With default_incomplete_payment_behavior, Stripe should always create a payment intent
+        // If we get here, something went wrong
       }
-
-      // Create payment intent with the correct (discounted) amount
-      paymentIntent = await stripe.paymentIntents.create({
-        amount: amountToCharge, // Use discounted amount
-        currency: price.currency,
-        customer: customer.id,
-        payment_method_types: ['card'],
-        setup_future_usage: 'off_session',
-        metadata: {
-          userId: userId,
-          subscriptionId: subscription.id,
-          priceId: priceId,
-          type: 'subscription_setup',
-          // Include discount info in metadata
-          ...(subscription.discount && { 
-            discountApplied: true,
-            discountType: subscription.discount.coupon ? 'coupon' : 'promotion_code',
-            discountId: subscription.discount.coupon?.id || subscription.discount.promotion_code?.id
-          })
-        }
-      });
-      console.log('Created payment intent for subscription setup:', paymentIntent.id);
     } else if (subscription.status === 'active') {
       // For active subscriptions, get payment intent from invoice
       paymentIntent = subscription.latest_invoice?.payment_intent;
@@ -262,7 +266,7 @@ const createPaymentSheet = async (req, res) => {
       hasSetupIntent: !!setupIntent,
       // Include pricing and discount information
       originalAmount: price.unit_amount,
-      finalAmount: subscription.latest_invoice?.amount_due || price.unit_amount,
+      finalAmount: paymentIntent ? paymentIntent.amount : (subscription.latest_invoice?.amount_due || price.unit_amount),
       currency: price.currency,
       discountApplied: discountInfo,
       // Trial information

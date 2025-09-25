@@ -119,7 +119,6 @@ exports.createSubscription = async (req, res) => {
         currentPeriodEnd: subscription.currentPeriodEnd,
         isActive: subscription.isActive
       },
-      clientSecret: clientSecret,
       success: true
     });
 

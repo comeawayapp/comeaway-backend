@@ -99,21 +99,34 @@ async createSubscription(customerId, priceId, options = {}) {
       };
     }
 
-    // Add coupon if specified
-    if (options.couponId) {
-      sessionData.discounts = [{
-        coupon: options.couponId
-      }];
+    // Add discounts if specified - Handle both coupon and promo code
+    if (options.couponId || options.promoCodeId) {
+      sessionData.discounts = [];
+      
+      if (options.couponId) {
+        sessionData.discounts.push({
+          coupon: options.couponId
+        });
+      }
+      
+      if (options.promoCodeId) {
+        sessionData.discounts.push({
+          promotion_code: options.promoCodeId
+        });
+      }
     }
 
-    // Add promotion code if specified
-    if (options.promoCodeId) {
-      sessionData.discounts = [{
-        promotion_code: options.promoCodeId
-      }];
-    }
-
-    return await stripe.checkout.sessions.create(sessionData);
+    console.log('Creating checkout session with data:', JSON.stringify(sessionData, null, 2));
+    
+    const session = await stripe.checkout.sessions.create(sessionData);
+    
+    console.log('Checkout session created:', {
+      id: session.id,
+      url: session.url,
+      discounts: session.discounts
+    });
+    
+    return session;
   }
 
 

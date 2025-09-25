@@ -21,7 +21,7 @@ const handleWebhook = async (req, res) => {
   }
 
   try {
-    console.log(`Processing webhook event: ${event.type}`);
+    console.log(`main Processing webhook event: ${event.type}`);
 
     switch (event.type) {
       case 'customer.subscription.created':
@@ -44,21 +44,6 @@ const handleWebhook = async (req, res) => {
         break;
       case 'payment_intent.payment_failed':
         await handlePaymentIntentFailed(event.data.object);
-        break;
-      case 'invoice.created':
-        console.log('Invoice created:', event.data.object.id);
-        break;
-      case 'invoice.updated':
-        console.log('Invoice updated:', event.data.object.id);
-        break;
-      case 'invoice.finalized':
-        console.log('Invoice finalized:', event.data.object.id);
-        break;
-      case 'invoice.paid':
-        console.log('Invoice paid:', event.data.object.id);
-        break;
-      case 'invoice_payment.paid':
-        console.log('Invoice payment paid:', event.data.object.id);
         break;
       default:
         console.log(`Unhandled event type: ${event.type}`);
@@ -257,8 +242,8 @@ async function handlePaymentIntentSucceeded(paymentIntent) {
       }
     );
 
-    // Check if this is a subscription setup payment
-    if (paymentIntent.metadata?.type === 'subscription_setup' && paymentIntent.metadata?.subscriptionId) {
+    // Check if this is a subscription payment
+    if ((paymentIntent.metadata?.type === 'subscription_setup' || paymentIntent.metadata?.type === 'subscription_payment') && paymentIntent.metadata?.subscriptionId) {
       const subscriptionId = paymentIntent.metadata.subscriptionId;
       
       try {
