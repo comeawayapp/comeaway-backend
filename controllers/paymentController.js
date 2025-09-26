@@ -15,6 +15,7 @@ const createCheckoutSession = async (req, res) => {
     const { priceId, successUrl, cancelUrl, couponCode, promoCode } = req.body;
     const userId = req.user._id;
     const user = await User.findById(userId);
+    console.log(user, "user");
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -41,6 +42,9 @@ const createCheckoutSession = async (req, res) => {
         priceId: priceId
       }
     };
+
+    // Always add 7-day trial for all subscriptions
+    options.trialPeriodDays = 7;
 
     // Add discount if provided - Enhanced coupon flow
     if (couponCode) {
@@ -78,6 +82,7 @@ const createCheckoutSession = async (req, res) => {
       sessionId: session.id,
       url: session.url,
       success: true,
+      trialPeriodDays: 7,
       // Include discount information if applied
       discountApplied: options.couponId || options.promoCodeId ? {
         type: options.couponId ? 'coupon' : 'promotion_code',

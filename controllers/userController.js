@@ -1205,32 +1205,28 @@ exports.getCurrentUserProfile = async (req, res) => {
         message: "User not found",
       });
     }
-
-    // Check and update Pro status
-    const updatedUser = await checkAndUpdateProStatus(gotuser);
-    
     // Determine user type and activation method
-    const userType = updatedUser.isPro ? "Pro" : "Standard";
-    const activationMethod = updatedUser.activationMode || "None";
+    const userType = gotuser.isPro ? "Pro" : "Standard";
+    const activationMethod = gotuser.activationMode || "None";
 
     res.status(200).json({
       success: true,
       message: "Profile retrieved successfully",
       user: {
-        _id: updatedUser._id,
-        firstname: updatedUser.firstname,
-        lastname: updatedUser.lastname,
-        email: updatedUser.email,
-        phoneNumber: updatedUser.phoneNumber || "",
-        role: updatedUser.role,
-        status: updatedUser.status,
-        isEmailVerified: updatedUser.isEmailVerified,
-        isPro: updatedUser.isPro,
-        proExpiresAt: updatedUser.proExpiresAt,
+        _id: gotuser._id,
+        firstname: gotuser.firstname,
+        lastname: gotuser.lastname,
+        email: gotuser.email,
+        phoneNumber: gotuser.phoneNumber || "",
+        role: gotuser.role,
+        status: gotuser.status,
+        isEmailVerified: gotuser.isEmailVerified,
+        isPro: gotuser.isPro,
+        proExpiresAt: gotuser.proExpiresAt,
         userType: userType,
         activationMethod: activationMethod,
-        createdAt: updatedUser.createdAt,
-        updatedAt: updatedUser.updatedAt,
+        createdAt: gotuser.createdAt,
+        updatedAt: gotuser.updatedAt,
       },
     });
   } catch (error) {

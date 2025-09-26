@@ -156,6 +156,20 @@ async createSubscription(customerId, priceId, options = {}) {
   // Sync subscription with database
   async syncSubscriptionToDatabase(stripeSubscription, userId) {
     try {
+      console.log('new new actual subscription', stripeSubscription);
+      // Defensive check: if stripeSubscription is a string, retrieve the full object
+      if (typeof stripeSubscription === 'string') {
+        console.log('Warning: syncSubscriptionToDatabase received string instead of object, retrieving subscription:', stripeSubscription);
+        stripeSubscription = await stripe.subscriptions.retrieve(stripeSubscription);
+        console.log('full subscription', stripeSubscription);
+
+      }
+
+      // Validate that we have a proper subscription object
+      if (!stripeSubscription || !stripeSubscription.id) {
+        throw new Error('Invalid subscription object provided to syncSubscriptionToDatabase');
+      }
+
       // Find or create subscription record
       let subscription = await Subscription.findOne({ 
         stripeSubscriptionId: stripeSubscription.id 
@@ -196,14 +210,24 @@ async createSubscription(customerId, priceId, options = {}) {
       const userUpdateData = {
         stripeSubscriptionId: stripeSubscription.id,
         subscriptionStatus: stripeSubscription.status,
-        isPro: stripeSubscription.status === 'active'
+        isPro: stripeSubscription.status === 'active' || stripeSubscription.status === 'trialing',
+        subscriptionCurrentPeriodEnd: null,
+        proExpiresAt: null
       };
 
-      // Only update period dates if they exist
-      if (stripeSubscription.current_period_end) {
+      // Handle trial period - if trialing, use trial_end, otherwise use current_period_end
+      if (stripeSubscription.status === 'trialing' && stripeSubscription.trial_end) {
+        userUpdateData.subscriptionCurrentPeriodEnd = new Date(stripeSubscription.trial_end * 1000);
+        userUpdateData.proExpiresAt = new Date(stripeSubscription.trial_end * 1000);
+      } else if (stripeSubscription.current_period_end) {
         userUpdateData.subscriptionCurrentPeriodEnd = new Date(stripeSubscription.current_period_end * 1000);
-        userUpdateData.proExpiresAt = new Date(stripeSubscription.current_period_end * 1000);
+        userUpdateData.proExpiresAt = new Date(stripeSubscription.current_period_end * 1000 );
+      }else{
+        userUpdateData.proExpiresAt = stripeSubscription.plan.interval == 'month' ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+        userUpdateData.subscriptionCurrentPeriodEnd = stripeSubscription.plan.interval == 'month' ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
       }
+
+      console.log('userUpdateData', userId, userUpdateData);
 
       await User.findByIdAndUpdate(userId, userUpdateData);
 

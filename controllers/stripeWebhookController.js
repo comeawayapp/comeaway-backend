@@ -24,15 +24,24 @@ const handleWebhook = async (req, res) => {
     console.log(`main Processing webhook event: ${event.type}`);
 
     switch (event.type) {
+      case 'checkout.session.completed':
+        await handleCheckoutSessionCompleted(event.data.object);
+        break;
       case 'customer.subscription.created':
         await handleSubscriptionCreated(event.data.object);
         break;
       case 'customer.subscription.updated':
         await handleSubscriptionUpdated(event.data.object);
         break;
+        case 'customer.subscription.canceled':
+          await handleSubscriptionCanceled(event.data.object);
+          break;
       case 'customer.subscription.deleted':
         await handleSubscriptionDeleted(event.data.object);
         break;
+        case 'charge.succeeded':
+          await handleChargeSucceeded(event.data.object);
+          break;  
       case 'invoice.payment_succeeded':
         await handlePaymentSucceeded(event.data.object);
         break;
@@ -55,6 +64,50 @@ const handleWebhook = async (req, res) => {
     res.status(500).json({ error: 'Webhook handler failed' });
   }
 };
+
+/**
+ * Handle checkout session completed event
+ * @param {Object} session - Stripe checkout session object
+ */
+async function handleCheckoutSessionCompleted(session) {
+  try {
+    console.log('Processing checkout session completed:', session.id);
+    
+    // Only process subscription mode sessions
+    if (session.mode !== 'subscription') {
+      console.log('Skipping non-subscription checkout session');
+      return;
+    }
+
+    // Get the subscription from the session
+    if (!session.subscription) {
+      console.log('No subscription found in checkout session');
+      return;
+    }
+
+    const subscription = await stripe.subscriptions.retrieve(session.subscription);
+    const user = await User.findOne({ stripeCustomerId: session.customer });
+    
+    if (!user) {
+      console.log(`User not found for customer ${session.customer}`);
+      return;
+    }
+
+    // Debug logging
+    console.log('Retrieved subscription object:', {
+      id: subscription.id,
+      status: subscription.status,
+      customer: subscription.customer,
+      type: typeof subscription
+    });
+
+    // Sync subscription to database
+    await stripeService.syncSubscriptionToDatabase(subscription, user._id);
+    console.log(`✅ Checkout session completed for user ${user.email}, subscription ${subscription.id}`);
+  } catch (error) {
+    console.error('Error handling checkout session completed:', error);
+  }
+}
 
 /**
  * Handle subscription created event
@@ -97,6 +150,60 @@ async function handleSubscriptionUpdated(subscription) {
     console.log(`✅ Subscription updated for user ${user.email}`);
   } catch (error) {
     console.error('Error handling subscription updated:', error);
+  }
+}
+/**
+ * Handle successful charge event
+ * @param {Object} charge - Stripe charge object
+ */
+async function handleChargeSucceeded(charge) {
+  try {
+    const user = await User.findOne({ stripeCustomerId: charge.customer });
+    if (!user) {
+      console.log(`User not found for customer ${charge.customer}`);
+      return;
+    }
+
+    // Create payment record for the charge
+    const payment = new Payment({
+      userId: user._id,
+      stripeChargeId: charge.id,
+      stripePaymentIntentId: charge.payment_intent,
+      amount: charge.amount,
+      currency: charge.currency,
+      status: 'succeeded',
+      customerId: charge.customer,
+      description: charge.description || '',
+      metadata: charge.metadata || {},
+      processingType: 'one_time',
+      paidAt: new Date(charge.created * 1000)
+    });
+
+    await payment.save();
+    console.log(`✅ Charge succeeded for user ${user.email}, amount: ${charge.amount / 100} ${charge.currency.toUpperCase()}`);
+  } catch (error) {
+    console.error('Error handling charge succeeded:', error);
+  }
+} 
+
+/**
+ * Handle subscription canceled event
+ * @param {Object} subscription - Stripe subscription object
+ */
+async function handleSubscriptionCanceled(subscription) {
+  try {
+    const user = await User.findOne({ stripeCustomerId: subscription.customer });
+    if (!user) {
+      console.log(`User not found for customer ${subscription.customer}`);
+      return;
+    }
+
+    // Sync subscription to database to update status
+    await stripeService.syncSubscriptionToDatabase(subscription, user._id);
+
+    console.log(`✅ Subscription canceled for user ${user.email}`);
+  } catch (error) {
+    console.error('Error handling subscription canceled:', error);
   }
 }
 
