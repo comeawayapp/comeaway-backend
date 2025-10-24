@@ -16,7 +16,7 @@ const SoundSchema = new mongoose.Schema({
     default: "uploading" 
   },
   uploadError: { type: String }, // Error message if upload fails
-  uploadCompletedAt: { type: Date } // When upload completed
+  uploadCompletedAt: { type: Date } // When upload complet
 });
 
 
