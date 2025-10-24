@@ -38,6 +38,9 @@ const UserSchema = new mongoose.Schema(
     // Legacy Pro status fields (kept for backward compatibility)
     isPro: { type: Boolean, default: false }, // Pro subscription status
     proExpiresAt: { type: Date }, // Pro subscription expiry
+    proUpdatedBy:{
+      type:String
+    },
     
     // Social auth fields
     appleId: { type: String }, // Apple Sign In ID

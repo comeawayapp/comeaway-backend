@@ -212,7 +212,8 @@ async createSubscription(customerId, priceId, options = {}) {
         subscriptionStatus: stripeSubscription.status,
         isPro: stripeSubscription.status === 'active' || stripeSubscription.status === 'trialing',
         subscriptionCurrentPeriodEnd: null,
-        proExpiresAt: null
+        proExpiresAt: null,
+        proUpdatedBy:"stripe"
       };
 
       // Handle trial period - if trialing, use trial_end, otherwise use current_period_end

@@ -11,6 +11,8 @@ async function checkAndUpdateProStatus(userDoc) {
       expired = true;
     } else {
       const now = new Date();
+      console.log(now,"now");
+      console.log(userDoc.proExpiresAt,"userDoc.proExpiresAt");
       const expiry = new Date(userDoc.proExpiresAt);
       if (expiry.getTime() < now.getTime()) {
         expired = true;
