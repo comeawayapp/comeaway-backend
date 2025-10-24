@@ -106,6 +106,7 @@ app.use("/api/badges", require("./router/badgeRoutes"));
 app.use("/api/narrators", require("./router/narratorRoutes"));
 app.use("/api/payments", require("./router/paymentRoute"));
 app.use("/api/stripe", require("./router/stripeRoutes"));
+app.use("/api/revenuecat", require("./router/revenueCatWebhook"));
 app.use("/api/activation-codes", require("./router/activationCodeRoutes"));
 app.use("/api/emails", require("./router/emailRoutes"));
 
@@ -135,7 +136,7 @@ app.use((req, res) => {
   });
 });
 
-// Start the server
+// // Start the server
 app.listen(port, host, () => {
   logger.info('Server started successfully', {
     host,
@@ -147,5 +148,6 @@ app.listen(port, host, () => {
   console.log(`API Documentation available at http://${host}:${port}/api-docs`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
 
 module.exports = app;
