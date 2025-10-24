@@ -15,6 +15,7 @@ const getProducts = async (req, res) => {
       limit: limit ? parseInt(limit) : 100
     };
 
+    
     const result = await stripeService.getProducts(options);
     
     if (!result.success) {
