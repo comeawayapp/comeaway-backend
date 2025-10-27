@@ -70,9 +70,9 @@ const handleSubscriptionExpiration=async(event)=>{
 const handleRenewal=async(event)=>{
     console.log(event,"event");
     try {
-        const user=await User.findOne({_id:event.original_app_user_id});
+        const user=await User.findOne({_id:event.app_user_id});
         if(!user){
-            console.log(`User not found for revenuecat ID: ${event.original_app_user_id}`);
+            console.log(`User not found for revenuecat ID: ${event.app_user_id}`);
             return;
         }
         const subscription=await Subscription.findOne({userId:user._id});
@@ -81,7 +81,7 @@ const handleRenewal=async(event)=>{
                 userId:user._id,
                 status:"active",
                 stripeSubscriptionId:event.original_transaction_id,
-                stripeCustomerId:event.original_app_user_id,
+                stripeCustomerId:event.app_user_id,
                 stripePriceId:event.product_id,
                 currentPeriodStart:new Date(event.purchased_at_ms + oneHourInMilliseconds),
                 currentPeriodEnd:new Date(event.expiration_at_ms + oneHourInMilliseconds),
@@ -98,7 +98,7 @@ const handleRenewal=async(event)=>{
                 userId:user._id,
                 status:"active",
                 stripeSubscriptionId:event.original_transaction_id,
-                stripeCustomerId:event.original_app_user_id,
+                stripeCustomerId:event.app_user_id,
                 stripePriceId:event.product_id,
                 currentPeriodStart:new Date(event.purchased_at_ms + oneHourInMilliseconds),
                 currentPeriodEnd:new Date(event.expiration_at_ms + oneHourInMilliseconds),
@@ -127,7 +127,7 @@ const handleRenewal=async(event)=>{
             amount:event.price,
             currency:"usd",
             status:"succeeded",
-            customerId:event.original_app_user_id,
+            customerId:event.app_user_id,
             processingType:"subscription",
             metadata:event,
             paidAt:new Date(event.purchased_at_ms + oneHourInMilliseconds),
