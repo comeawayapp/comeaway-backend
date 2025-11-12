@@ -10,11 +10,6 @@ router.post(
   entitlementController.createEntitlement
 );
 router.post(
-  "/admin/entitlements/generate-bulk",
-  auth,
-  entitlementController.generateBulkEntitlements
-);
-router.post(
   "/admin/entitlements/send-to-user",
   auth,
   entitlementController.sendAccessEmailToUser

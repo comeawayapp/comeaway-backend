@@ -381,48 +381,6 @@
 
 /**
  * @swagger
- * /api/entitlements/admin/entitlements/generate-bulk:
- *   post:
- *     summary: Generate bulk entitlements (Admin only)
- *     tags: [Entitlements]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - count
- *               - productName
- *               - platform
- *             properties:
- *               count:
- *                 type: integer
- *                 minimum: 1
- *                 maximum: 1000
- *                 description: Number of entitlements to generate
- *               productName:
- *                 type: string
- *               platform:
- *                 type: string
- *                 enum: [shopify, amazon, google_play, apple_iap, stripe, other]
- *               expiryDate:
- *                 type: string
- *                 format: date-time
- *                 description: Expiry date (optional, defaults to 5 years)
- *     responses:
- *       201:
- *         description: Entitlements generated successfully
- *       400:
- *         description: Invalid data
- *       500:
- *         description: Server error
- */
-
-/**
- * @swagger
  * /api/entitlements/admin/entitlements/send-to-user:
  *   post:
  *     summary: Send access email to user (Admin only)
