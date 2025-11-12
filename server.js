@@ -108,6 +108,7 @@ app.use("/api/payments", require("./router/paymentRoute"));
 app.use("/api/stripe", require("./router/stripeRoutes"));
 app.use("/api/revenuecat", require("./router/revenueCatWebhook"));
 app.use("/api/activation-codes", require("./router/activationCodeRoutes"));
+app.use("/api/entitlements", require("./router/entitlementRoutes"));
 app.use("/api/emails", require("./router/emailRoutes"));
 
 // Global error handler

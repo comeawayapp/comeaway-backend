@@ -531,6 +531,119 @@ The Comeaway Team
   }
 
   /**
+   * Send Access Ready email when entitlement is auto-redeemed
+   * @param {string} email - Recipient email
+   * @param {string} firstName - User's first name
+   * @returns {Promise<Object>} - Send result
+   */
+  async sendAccessReadyEmail(email, firstName) {
+    const subject = "Your ComeAway Access is Ready";
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Access Ready - ComeAway</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+            .container { background: #ffffff; padding: 40px; border: 1px solid #e0e0e0; }
+            .header { border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
+            .header h1 { margin: 0; color: #333; font-size: 24px; }
+            .content { color: #333; }
+            .success-message { background: #f8f9fa; border-left: 4px solid #333; padding: 15px; margin: 20px 0; }
+            .success-message p { margin: 0; color: #333; }
+            .steps { margin: 20px 0; }
+            .steps ol { margin: 10px 0; padding-left: 20px; }
+            .steps li { margin: 8px 0; color: #555; }
+            .features { margin: 20px 0; }
+            .features ul { margin: 10px 0; padding-left: 20px; }
+            .features li { margin: 8px 0; color: #555; }
+            .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666; }
+            a { color: #333; text-decoration: underline; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>Your ComeAway Access is Active</h1>
+            </div>
+            
+            <div class="content">
+              <p>Hello ${firstName},</p>
+              
+              <div class="success-message">
+                <p>
+                  Your ComeAway Pro access is now active. You can sign up or sign in with <strong>${email}</strong> to start enjoying premium features.
+                </p>
+              </div>
+              
+              <h3 style="color: #333; margin-top: 30px;">What's Next?</h3>
+              <div class="steps">
+                <ol>
+                  <li>Open the ComeAway app</li>
+                  <li>Sign up or sign in with your email: <strong>${email}</strong></li>
+                  <li>Start enjoying your premium access</li>
+                </ol>
+              </div>
+              
+              <h3 style="color: #333; margin-top: 30px;">You now have access to:</h3>
+              <div class="features">
+                <ul>
+                  <li>Unlimited premium audio content</li>
+                  <li>Ad-free experience</li>
+                  <li>Exclusive features and sounds</li>
+                  <li>Offline downloads</li>
+                </ul>
+              </div>
+              
+              <p style="margin-top: 30px;">
+                If you have any questions, please <a href="mailto:support@comeaway.com">contact our support team</a>.
+              </p>
+            </div>
+            
+            <div class="footer">
+              <p>This is an automated message from ComeAway.</p>
+              <p>Please do not reply to this email.</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const text = `
+Hello ${firstName},
+
+Your ComeAway app access is active.
+
+Sign up or sign in with ${email} to start enjoying premium features.
+
+What's Next?
+1. Open the ComeAway app
+2. Sign up or sign in with your email: ${email}
+3. Start enjoying your premium access
+
+You now have access to:
+- Unlimited premium audio content
+- Ad-free experience
+- Exclusive features and sounds
+- Offline downloads
+
+If you have any questions, contact our support team: support@comeaway.com
+
+Thank you,
+ComeAway Team
+    `;
+
+    return this.sendEmail({
+      to: email,
+      subject,
+      html,
+      text,
+    });
+  }
+
+  /**
    * Send multiple activation codes in one email
    * @param {string} email - Recipient email
    * @param {string} customerName - Customer name
