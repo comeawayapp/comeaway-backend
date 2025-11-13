@@ -217,12 +217,15 @@ class EmailService {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Password Reset OTP</title>
           <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-            .container { background: #f9f9f9; padding: 30px; border-radius: 10px; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .otp-code { background: #007bff; color: white; font-size: 24px; font-weight: bold; padding: 15px 30px; border-radius: 5px; display: inline-block; letter-spacing: 3px; margin: 20px 0; }
-            .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
-            .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #666; }
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+            .container { background: white; padding: 40px; border-radius: 8px; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #5ad2fe; padding-bottom: 20px; }
+            .header h1 { margin: 0; color: #333; font-size: 24px; }
+            .otp-code { background: #5ad2fe; color: white; font-size: 28px; font-weight: bold; padding: 20px 40px; border-radius: 6px; display: inline-block; letter-spacing: 4px; margin: 30px 0; }
+            .warning { background: #f8f9fa; border-left: 4px solid #5ad2fe; padding: 15px; border-radius: 4px; margin: 20px 0; }
+            .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666; }
+            a { color: #5ad2fe; text-decoration: none; }
+            a:hover { text-decoration: underline; }
           </style>
         </head>
         <body>
@@ -293,7 +296,7 @@ Comeaway Team
    * @returns {Promise<Object>} - Send result
    */
   async sendWelcomeEmail(email, firstName) {
-    const subject = "Welcome to Comeaway! 🎵";
+    const subject = "Welcome to Comeaway!";
     const html = `
       <!DOCTYPE html>
       <html>
@@ -302,34 +305,39 @@ Comeaway Team
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Welcome to Comeaway</title>
           <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-            .container { background: #f9f9f9; padding: 30px; border-radius: 10px; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .highlight { color: #007bff; font-weight: bold; }
-            .feature-list { background: #f1f7ff; padding: 20px; border-radius: 8px; margin: 20px 0; }
-            .btn { background: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; font-size: 16px; }
-            .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #666; }
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+            .container { background: white; padding: 40px; border-radius: 8px; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #5ad2fe; padding-bottom: 20px; }
+            .header h1 { margin: 0; color: #333; font-size: 24px; }
+            .highlight { color: #5ad2fe; font-weight: bold; }
+            .feature-list { background: #f8f9fa; border-left: 4px solid #5ad2fe; padding: 20px; border-radius: 4px; margin: 20px 0; }
+            .btn { background: #5ad2fe; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 20px 0; font-size: 16px; font-weight: 600; }
+            .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666; }
+            a { color: #5ad2fe; text-decoration: none; }
+            a:hover { text-decoration: underline; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1>Welcome to <span class="highlight">Comeaway</span>! 🎵</h1>
+              <h1>Welcome to <span class="highlight">Comeaway</span>!</h1>
               <p>Hello <span class="highlight">${firstName}</span>,</p>
             </div>
             <p>We're thrilled to have you join our audio community. Your journey to discovering, creating, and enjoying amazing audio content starts now!</p>
             <div class="feature-list">
-              <h2>What you can do on Comeaway:</h2>
+              <h2 style="margin-top: 0; color: #333;">What you can do on Comeaway:</h2>
               <ul>
-                <li>🎧 Discover trending and exclusive audio content</li>
-                <li>📝 Create and manage your own playlists</li>
-                <li>⭐ Rate and review your favorite sounds</li>
-                <li>🔔 Get notified about new releases and features</li>
-                <li>💎 Access premium content with a Pro subscription</li>
+                <li>Discover trending and exclusive audio content</li>
+                <li>Create and manage your own playlists</li>
+                <li>Rate and review your favorite sounds</li>
+                <li>Get notified about new releases and features</li>
+                <li>Access premium content with a Pro subscription</li>
               </ul>
             </div>
-            <p>Ready to start exploring? Click below to dive in:</p>
-            <a href="https://comeaway.com/app" class="btn">Start Exploring</a>
+            <p style="text-align: center;">Ready to start exploring? Click below to dive in:</p>
+            <div style="text-align: center;">
+              <a href="https://comeaway.com/app" class="btn">Start Exploring</a>
+            </div>
             <div class="footer">
               <p>Need help? <a href="mailto:support@comeaway.com">Contact our support team</a>.</p>
               <p>Happy listening!<br>The Comeaway Team</p>
@@ -386,7 +394,7 @@ The Comeaway Team
       day: "numeric",
     });
 
-    const subject = "🎉 Comeaway Pro Subscription Activated!";
+    const subject = "Comeaway Pro Subscription Activated!";
     const html = `
       <!DOCTYPE html>
       <html>
@@ -395,18 +403,22 @@ The Comeaway Team
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Pro Subscription Activated</title>
           <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-            .container { background: #f8f9fa; padding: 30px; border-radius: 10px; }
-            .header { background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 30px; border-radius: 10px; text-align: center; margin-bottom: 20px; }
-            .plan-details { background: white; padding: 20px; border-radius: 5px; border-left: 4px solid #28a745; margin: 20px 0; }
-            .benefits { background: #e8f5e8; padding: 20px; border-radius: 5px; margin: 20px 0; }
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+            .container { background: white; padding: 40px; border-radius: 8px; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #5ad2fe; padding-bottom: 20px; }
+            .header h1 { margin: 0; color: #333; font-size: 24px; }
+            .plan-details { background: #f8f9fa; border-left: 4px solid #5ad2fe; padding: 20px; border-radius: 4px; margin: 20px 0; }
+            .benefits { background: #f8f9fa; border-left: 4px solid #5ad2fe; padding: 20px; border-radius: 4px; margin: 20px 0; }
+            .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666; }
+            a { color: #5ad2fe; text-decoration: none; }
+            a:hover { text-decoration: underline; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1>🎉 Welcome to Comeaway Pro!</h1>
-              <p>Your subscription is now active</p>
+              <h1>Welcome to Comeaway Pro!</h1>
+              <p style="margin: 10px 0 0 0; color: #666;">Your subscription is now active</p>
             </div>
             
             <p>Hello ${firstName},</p>
@@ -414,7 +426,7 @@ The Comeaway Team
             <p>Congratulations! Your Comeaway Pro subscription has been successfully activated.</p>
             
             <div class="plan-details">
-              <h3>📋 Subscription Details:</h3>
+              <h3 style="margin-top: 0; color: #333;">Subscription Details:</h3>
               <ul>
                 <li><strong>Plan:</strong> ${plan.charAt(0).toUpperCase() + plan.slice(1)} Pro</li>
                 <li><strong>Status:</strong> Active</li>
@@ -423,20 +435,23 @@ The Comeaway Team
             </div>
             
             <div class="benefits">
-              <h3>🌟 Your Pro Benefits:</h3>
+              <h3 style="margin-top: 0; color: #333;">Your Pro Benefits:</h3>
               <ul>
-                <li>✅ Access to all premium audio content</li>
-                <li>✅ Unlimited playlist creation</li>
-                <li>✅ High-quality audio streaming</li>
-                <li>✅ Ad-free listening experience</li>
-                <li>✅ Priority customer support</li>
-                <li>✅ Early access to new features</li>
+                <li>Access to all premium audio content</li>
+                <li>Unlimited playlist creation</li>
+                <li>High-quality audio streaming</li>
+                <li>Ad-free listening experience</li>
+                <li>Priority customer support</li>
+                <li>Early access to new features</li>
               </ul>
             </div>
             
             <p>Thank you for choosing Comeaway Pro. We hope you enjoy your premium experience!</p>
             
-            <p>Best regards,<br>The Comeaway Team</p>
+            <div class="footer">
+              <p>Best regards,<br>The Comeaway Team</p>
+              <p>This is an automated email. Please do not reply to this message.</p>
+            </div>
           </div>
         </body>
       </html>
@@ -480,29 +495,36 @@ The Comeaway Team
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Activation Code</title>
           <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-            .container { background: #f9f9f9; padding: 30px; border-radius: 10px; }
-            .code-section { background: white; padding: 30px; border-radius: 10px; text-align: center; margin: 20px 0; border: 2px dashed #007bff; }
-            .activation-code { font-size: 36px; font-weight: bold; color: #007bff; letter-spacing: 8px; margin: 20px 0; }
-            .instructions { background: #e3f2fd; padding: 20px; border-radius: 5px; margin: 20px 0; }
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+            .container { background: white; padding: 40px; border-radius: 8px; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #5ad2fe; padding-bottom: 20px; }
+            .header h1 { margin: 0; color: #333; font-size: 24px; }
+            .code-section { background: #f8f9fa; border: 2px solid #5ad2fe; padding: 30px; border-radius: 6px; text-align: center; margin: 30px 0; }
+            .activation-code { background: #5ad2fe; color: white; font-size: 32px; font-weight: bold; padding: 20px 40px; border-radius: 6px; display: inline-block; letter-spacing: 6px; margin: 20px 0; }
+            .instructions { background: #f8f9fa; border-left: 4px solid #5ad2fe; padding: 20px; border-radius: 4px; margin: 20px 0; }
+            .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666; }
+            a { color: #5ad2fe; text-decoration: none; }
+            a:hover { text-decoration: underline; }
           </style>
         </head>
         <body>
           <div class="container">
-            <h1>🎵 Your Comeaway Activation Code</h1>
+            <div class="header">
+              <h1>Your Comeaway Activation Code</h1>
+            </div>
             
             <p>Hello ${customerName},</p>
             
             <p>Thank you for your purchase! Here is your activation code for <strong>${productName}</strong>:</p>
             
             <div class="code-section">
-              <h2>Activation Code</h2>
+              <h2 style="margin-top: 0; color: #333;">Activation Code</h2>
               <div class="activation-code">${activationCode}</div>
-              <p><strong>Expires:</strong> ${formattedDate}</p>
+              <p style="margin: 0; color: #666;"><strong>Expires:</strong> ${formattedDate}</p>
             </div>
             
             <div class="instructions">
-              <h3>📱 How to redeem:</h3>
+              <h3 style="margin-top: 0; color: #333;">How to redeem:</h3>
               <ol>
                 <li>Open the Comeaway app</li>
                 <li>Go to Settings → Activation Codes</li>
@@ -515,9 +537,11 @@ The Comeaway Team
             
             <p>If you have any issues redeeming your code, please <a href="mailto:support@comeaway.com">contact our support team</a>.</p>
             
-            <p>Thank you for choosing Comeaway!</p>
-            
-            <p>Best regards,<br>The Comeaway Team</p>
+            <div class="footer">
+              <p>Thank you for choosing Comeaway!</p>
+              <p>Best regards,<br>The Comeaway Team</p>
+              <p>This is an automated email. Please do not reply to this message.</p>
+            </div>
           </div>
         </body>
       </html>
@@ -547,64 +571,56 @@ The Comeaway Team
           <title>Access Ready - ComeAway</title>
           <style>
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
-            .container { background: #ffffff; padding: 40px; border: 1px solid #e0e0e0; }
-            .header { border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
+            .container { background: white; padding: 40px; border-radius: 8px; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #5ad2fe; padding-bottom: 20px; }
             .header h1 { margin: 0; color: #333; font-size: 24px; }
-            .content { color: #333; }
-            .success-message { background: #f8f9fa; border-left: 4px solid #333; padding: 15px; margin: 20px 0; }
-            .success-message p { margin: 0; color: #333; }
-            .steps { margin: 20px 0; }
-            .steps ol { margin: 10px 0; padding-left: 20px; }
-            .steps li { margin: 8px 0; color: #555; }
-            .features { margin: 20px 0; }
-            .features ul { margin: 10px 0; padding-left: 20px; }
-            .features li { margin: 8px 0; color: #555; }
-            .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666; }
-            a { color: #333; text-decoration: underline; }
+            .highlight { color: #5ad2fe; font-weight: bold; }
+            .success-message { background: #f8f9fa; border-left: 4px solid #5ad2fe; padding: 15px; border-radius: 4px; margin: 20px 0; }
+            .steps { background: #f8f9fa; border-left: 4px solid #5ad2fe; padding: 20px; border-radius: 4px; margin: 20px 0; }
+            .features { background: #f8f9fa; border-left: 4px solid #5ad2fe; padding: 20px; border-radius: 4px; margin: 20px 0; }
+            .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666; }
+            a { color: #5ad2fe; text-decoration: none; }
+            a:hover { text-decoration: underline; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1>Your ComeAway Access is Active</h1>
+              <h1>Your <span class="highlight">ComeAway</span> Access is Active</h1>
             </div>
             
-            <div class="content">
-              <p>Hello ${firstName},</p>
-              
-              <div class="success-message">
-                <p>
-                  Your ComeAway Pro access is now active. You can sign up or sign in with <strong>${email}</strong> to start enjoying premium features.
-                </p>
-              </div>
-              
-              <h3 style="color: #333; margin-top: 30px;">What's Next?</h3>
-              <div class="steps">
-                <ol>
-                  <li>Open the ComeAway app</li>
-                  <li>Sign up or sign in with your email: <strong>${email}</strong></li>
-                  <li>Start enjoying your premium access</li>
-                </ol>
-              </div>
-              
-              <h3 style="color: #333; margin-top: 30px;">You now have access to:</h3>
-              <div class="features">
-                <ul>
-                  <li>Unlimited premium audio content</li>
-                  <li>Ad-free experience</li>
-                  <li>Exclusive features and sounds</li>
-                  <li>Offline downloads</li>
-                </ul>
-              </div>
-              
-              <p style="margin-top: 30px;">
-                If you have any questions, please <a href="mailto:support@comeaway.com">contact our support team</a>.
+            <p>Hello <span class="highlight">${firstName}</span>,</p>
+            
+            <div class="success-message">
+              <p style="margin: 0;">
+                Your ComeAway Pro access is now active. You can sign up or sign in with <strong>${email}</strong> to start enjoying premium features.
               </p>
             </div>
             
+            <div class="steps">
+              <h2 style="margin-top: 0; color: #333;">What's Next?</h2>
+              <ol>
+                <li>Open the ComeAway app</li>
+                <li>Sign up or sign in with your email: <strong>${email}</strong></li>
+                <li>Start enjoying your premium access</li>
+              </ol>
+            </div>
+            
+            <div class="features">
+              <h2 style="margin-top: 0; color: #333;">You now have access to:</h2>
+              <ul>
+                <li>Unlimited premium audio content</li>
+                <li>Ad-free experience</li>
+                <li>Exclusive features and sounds</li>
+                <li>Offline downloads</li>
+              </ul>
+            </div>
+            
+            <p>If you have any questions, please <a href="mailto:support@comeaway.com">contact our support team</a>.</p>
+            
             <div class="footer">
-              <p>This is an automated message from ComeAway.</p>
-              <p>Please do not reply to this email.</p>
+              <p>Best regards,<br>Comeaway Team</p>
+              <p>This is an automated email. Please do not reply to this message.</p>
             </div>
           </div>
         </body>
@@ -644,6 +660,121 @@ ComeAway Team
   }
 
   /**
+   * Send entitlement access email
+   * @param {string} email - Recipient email
+   * @param {string} customerName - Customer name
+   * @param {string} entitlementId - Entitlement ID
+   * @param {string} productName - Product name
+   * @param {Date} expiryDate - Expiry date
+   * @returns {Promise<Object>} - Send result
+   */
+  async sendEntitlementAccessEmail(email, customerName, entitlementId, productName, expiryDate) {
+    const formattedDate = new Date(expiryDate).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const subject = "Your ComeAway Access";
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Access Email - ComeAway</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+            .container { background: white; padding: 40px; border-radius: 8px; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #5ad2fe; padding-bottom: 20px; }
+            .header h1 { margin: 0; color: #333; font-size: 24px; }
+            .highlight { color: #5ad2fe; font-weight: bold; }
+            .entitlement-section { background: #f8f9fa; border: 2px solid #5ad2fe; padding: 30px; border-radius: 6px; text-align: center; margin: 30px 0; }
+            .entitlement-id { background: #5ad2fe; color: white; font-size: 28px; font-weight: bold; padding: 20px 40px; border-radius: 6px; display: inline-block; letter-spacing: 4px; margin: 20px 0; }
+            .instructions { background: #f8f9fa; border-left: 4px solid #5ad2fe; padding: 20px; border-radius: 4px; margin: 20px 0; }
+            .warning { background: #f8f9fa; border-left: 4px solid #5ad2fe; padding: 15px; border-radius: 4px; margin: 20px 0; }
+            .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666; }
+            a { color: #5ad2fe; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>Your <span class="highlight">ComeAway</span> Access</h1>
+            </div>
+            
+            <p>Hello <span class="highlight">${customerName}</span>,</p>
+            
+            <p>Thank you for your purchase! Here is your access information for <strong>${productName}</strong>:</p>
+            
+            <div class="entitlement-section">
+              <h2 style="margin-top: 0; color: #333;">Entitlement ID</h2>
+              <div class="entitlement-id">${entitlementId}</div>
+              <p style="margin: 0; color: #666;"><strong>Expires:</strong> ${formattedDate}</p>
+            </div>
+            
+            <div class="instructions">
+              <h2 style="margin-top: 0; color: #333;">How to access:</h2>
+              <ol>
+                <li>Open the ComeAway app</li>
+                <li>Sign up or sign in with your email: <strong>${email}</strong></li>
+                <li>Your premium access will be automatically activated</li>
+              </ol>
+            </div>
+            
+            <div class="warning">
+              <strong>Important:</strong>
+              <ul>
+                <li>Your access must be used before ${formattedDate}</li>
+                <li>After this date, the entitlement will expire</li>
+                <li>If you have any issues, please contact our support team</li>
+              </ul>
+            </div>
+            
+            <p>If you have any questions, please <a href="mailto:support@comeaway.com">contact our support team</a>.</p>
+            
+            <div class="footer">
+              <p>Best regards,<br>Comeaway Team</p>
+              <p>This is an automated email. Please do not reply to this message.</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const text = `
+Hello ${customerName},
+
+Thank you for your purchase! Here is your access information for ${productName}:
+
+Entitlement ID: ${entitlementId}
+Expires: ${formattedDate}
+
+How to access:
+1. Open the ComeAway app
+2. Sign up or sign in with your email: ${email}
+3. Your premium access will be automatically activated
+
+Important: Your access must be used before ${formattedDate}. After this date, the entitlement will expire.
+
+If you have any questions, contact our support team: support@comeaway.com
+
+Thank you for choosing ComeAway!
+
+Best regards,
+The ComeAway Team
+    `;
+
+    return this.sendEmail({
+      to: email,
+      subject,
+      html,
+      text,
+    });
+  }
+
+  /**
    * Send multiple activation codes in one email
    * @param {string} email - Recipient email
    * @param {string} customerName - Customer name
@@ -669,7 +800,7 @@ ComeAway Team
       
       return `
         <tr style="border-bottom: 1px solid #e0e0e0;">
-          <td style="padding: 12px; font-size: 18px; font-weight: bold; color: #007bff; letter-spacing: 2px;">${code.code}</td>
+          <td style="padding: 12px; font-size: 18px; font-weight: bold; color: #5ad2fe; letter-spacing: 2px;">${code.code}</td>
           <td style="padding: 12px; color: #333;">${code.productName}</td>
           <td style="padding: 12px; color: #333;">${code.platform}</td>
           <td style="padding: 12px; color: #666;">${formattedDate}</td>
@@ -678,13 +809,13 @@ ComeAway Team
     }).join('');
 
     const codesHtml = `
-      <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+      <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 6px; overflow: hidden; border: 1px solid #e0e0e0;">
         <thead>
           <tr style="background: #f8f9fa;">
-            <th style="padding: 15px; text-align: left; color: #333; font-weight: 600; border-bottom: 2px solid #dee2e6;">Code</th>
-            <th style="padding: 15px; text-align: left; color: #333; font-weight: 600; border-bottom: 2px solid #dee2e6;">Product</th>
-            <th style="padding: 15px; text-align: left; color: #333; font-weight: 600; border-bottom: 2px solid #dee2e6;">Platform</th>
-            <th style="padding: 15px; text-align: left; color: #333; font-weight: 600; border-bottom: 2px solid #dee2e6;">Expires</th>
+            <th style="padding: 15px; text-align: left; color: #333; font-weight: 600; border-bottom: 2px solid #5ad2fe;">Code</th>
+            <th style="padding: 15px; text-align: left; color: #333; font-weight: 600; border-bottom: 2px solid #5ad2fe;">Product</th>
+            <th style="padding: 15px; text-align: left; color: #333; font-weight: 600; border-bottom: 2px solid #5ad2fe;">Platform</th>
+            <th style="padding: 15px; text-align: left; color: #333; font-weight: 600; border-bottom: 2px solid #5ad2fe;">Expires</th>
           </tr>
         </thead>
         <tbody>
@@ -701,36 +832,42 @@ ComeAway Team
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Multiple Activation Codes</title>
           <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-            .container { background: #f9f9f9; padding: 30px; border-radius: 10px; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .instructions { background: #e3f2fd; padding: 20px; border-radius: 5px; margin: 20px 0; }
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+            .container { background: white; padding: 40px; border-radius: 8px; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #5ad2fe; padding-bottom: 20px; }
+            .header h1 { margin: 0; color: #333; font-size: 24px; }
+            .instructions { background: #f8f9fa; border-left: 4px solid #5ad2fe; padding: 20px; border-radius: 4px; margin: 20px 0; }
             .codes-container { margin: 20px 0; }
+            .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666; }
+            a { color: #5ad2fe; text-decoration: none; }
+            a:hover { text-decoration: underline; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1>🎵 Your Comeaway Activation Codes</h1>
+              <h1>Your Comeaway Activation Codes</h1>
             </div>
             
             <p>Hello ${customerName},</p>
             
             <p>Here are your activation codes for <strong>${productName}</strong>:</p>
             
-            <div class="codes-container" style="text-align: center; margin: 20px 0;">
+            <div class="codes-container">
               ${codesHtml}
             </div>
             
             <div class="instructions">
-            
-            <p><strong>Important:</strong> Each code can only be used once. Use them before they expire.</p>
+              <p style="margin-top: 0;"><strong>Important:</strong> Each code can only be used once. Use them before they expire.</p>
+            </div>
             
             <p>If you have any issues redeeming your codes, please <a href="mailto:support@comeaway.com">contact our support team</a>.</p>
             
-            <p>Thank you for choosing Comeaway!</p>
-            
-            <p>Best regards,<br>The Comeaway Team</p>
+            <div class="footer">
+              <p>Thank you for choosing Comeaway!</p>
+              <p>Best regards,<br>The Comeaway Team</p>
+              <p>This is an automated email. Please do not reply to this message.</p>
+            </div>
           </div>
         </body>
       </html>
@@ -758,35 +895,43 @@ ComeAway Team
       <html>
         <head>
           <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Admin Notification</title>
           <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .alert { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
-            .data { background: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace; }
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+            .container { background: white; padding: 40px; border-radius: 8px; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #5ad2fe; padding-bottom: 20px; }
+            .header h1 { margin: 0; color: #333; font-size: 24px; }
+            .alert { background: #f8f9fa; border-left: 4px solid #5ad2fe; padding: 15px; border-radius: 4px; margin: 20px 0; }
+            .data { background: #f8f9fa; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+            .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666; }
           </style>
         </head>
         <body>
           <div class="container">
-            <h1>🔔 Admin Notification</h1>
+            <div class="header">
+              <h1>Admin Notification</h1>
+            </div>
             
             <div class="alert">
-              <h2>${subject}</h2>
-              <p>${message}</p>
+              <h2 style="margin-top: 0; color: #333;">${subject}</h2>
+              <p style="margin-bottom: 0;">${message}</p>
             </div>
             
             ${
               Object.keys(data).length > 0 ?
                 `
-              <h3>Additional Data:</h3>
+              <h3 style="color: #333;">Additional Data:</h3>
               <div class="data">
-                <pre>${JSON.stringify(data, null, 2)}</pre>
+                <pre style="margin: 0;">${JSON.stringify(data, null, 2)}</pre>
               </div>
             `
               : ""
             }
             
-            <p><small>Generated at: ${new Date().toISOString()}</small></p>
+            <div class="footer">
+              <p>Generated at: ${new Date().toISOString()}</p>
+            </div>
           </div>
         </body>
       </html>
@@ -807,7 +952,7 @@ ComeAway Team
    * @returns {Promise<Object>} - Send result
    */
   async sendDeletionRequestOTP(email, firstName, otp) {
-    const subject = "Account Deletion Request - Comeaway ⚠️";
+    const subject = "Account Deletion Request - Comeaway";
     const html = `
       <!DOCTYPE html>
       <html>
@@ -816,61 +961,63 @@ ComeAway Team
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Account Deletion Request - Comeaway</title>
           <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-            .container { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%); color: white; padding: 40px; border-radius: 15px; text-align: center; }
-            .content { background: white; color: #333; padding: 30px; border-radius: 10px; margin: 20px 0; }
-            .otp-box { background: #f8f9fa; border: 2px dashed #dc3545; padding: 20px; border-radius: 10px; margin: 20px 0; }
-            .otp-code { font-size: 32px; font-weight: bold; color: #dc3545; letter-spacing: 5px; }
-            .warning { background: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; margin: 20px 0; color: #721c24; }
-            .important { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; color: #856404; }
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+            .container { background: white; padding: 40px; border-radius: 8px; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #5ad2fe; padding-bottom: 20px; }
+            .header h1 { margin: 0; color: #333; font-size: 24px; }
+            .highlight { color: #5ad2fe; font-weight: bold; }
+            .otp-box { background: #f8f9fa; border: 2px solid #5ad2fe; padding: 20px; border-radius: 6px; margin: 30px 0; text-align: center; }
+            .otp-code { background: #5ad2fe; color: white; font-size: 28px; font-weight: bold; padding: 20px 40px; border-radius: 6px; display: inline-block; letter-spacing: 4px; margin: 15px 0; }
+            .warning { background: #f8f9fa; border-left: 4px solid #5ad2fe; padding: 15px; border-radius: 4px; margin: 20px 0; }
+            .important { background: #f8f9fa; border-left: 4px solid #5ad2fe; padding: 15px; border-radius: 4px; margin: 20px 0; }
+            .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666; }
+            a { color: #5ad2fe; text-decoration: none; }
+            a:hover { text-decoration: underline; }
           </style>
         </head>
         <body>
           <div class="container">
-            <h1>⚠️ Account Deletion Request</h1>
-            <p>Hello ${firstName}!</p>
-            
-            <div class="content">
-              <h2>Confirm Your Account Deletion</h2>
-              
-              <div class="warning">
-                <strong>⚠️ Important:</strong>
-                <p>You have requested to delete your Comeaway account. This action will permanently remove all your data including:</p>
-                <ul style="text-align: left; margin: 10px 0;">
-                  <li>🎵 All your playlists and favorites</li>
-                  <li>⭐ Your ratings and reviews</li>
-                  <li>📱 Account settings and preferences</li>
-                  <li>💳 Subscription information</li>
-                  <li>📊 Usage history and statistics</li>
-                </ul>
-              </div>
-              
-              <p>To confirm this deletion, please use the verification code below:</p>
-              
-              <div class="otp-box">
-                <p style="margin: 0; font-size: 18px;">Your Deletion Confirmation Code:</p>
-                <div class="otp-code">${otp}</div>
-              </div>
-              
-              <div class="important">
-                <strong>🔒 Security Notice:</strong>
-                <ul style="text-align: left; margin: 10px 0;">
-                  <li>This code will expire in <strong>15 minutes</strong></li>
-                  <li>Do not share this code with anyone</li>
-                  <li>This action cannot be undone once confirmed</li>
-                  <li>If you didn't request this deletion, please ignore this email</li>
-                </ul>
-              </div>
-              
-              <p style="margin-top: 30px;">
-                <strong>Need help?</strong> If you have any questions or need assistance, please <a href="mailto:support@comeaway.com">contact our support team</a> before proceeding.
-              </p>
+            <div class="header">
+              <h1>Account Deletion Request</h1>
             </div>
             
-            <p style="font-size: 14px; opacity: 0.8;">
-              This is an automated message from Comeaway.<br>
-              Please do not reply to this email.
-            </p>
+            <p>Hello <span class="highlight">${firstName}</span>,</p>
+            
+            <div class="warning">
+              <strong>Important:</strong>
+              <p>You have requested to delete your Comeaway account. This action will permanently remove all your data including:</p>
+              <ul>
+                <li>All your playlists and favorites</li>
+                <li>Your ratings and reviews</li>
+                <li>Account settings and preferences</li>
+                <li>Subscription information</li>
+                <li>Usage history and statistics</li>
+              </ul>
+            </div>
+            
+            <p>To confirm this deletion, please use the verification code below:</p>
+            
+            <div class="otp-box">
+              <p style="margin: 0 0 10px 0; font-size: 16px; color: #333;">Your Deletion Confirmation Code:</p>
+              <div class="otp-code">${otp}</div>
+            </div>
+            
+            <div class="important">
+              <strong>Security Notice:</strong>
+              <ul>
+                <li>This code will expire in <strong>15 minutes</strong></li>
+                <li>Do not share this code with anyone</li>
+                <li>This action cannot be undone once confirmed</li>
+                <li>If you didn't request this deletion, please ignore this email</li>
+              </ul>
+            </div>
+            
+            <p><strong>Need help?</strong> If you have any questions or need assistance, please <a href="mailto:support@comeaway.com">contact our support team</a> before proceeding.</p>
+            
+            <div class="footer">
+              <p>This is an automated message from Comeaway.</p>
+              <p>Please do not reply to this email.</p>
+            </div>
           </div>
         </body>
       </html>
@@ -919,7 +1066,7 @@ Comeaway Team
    * @returns {Promise<Object>} - Send result
    */
   async sendVerificationOTP(email, firstName, otp) {
-    const subject = "Verify Your Email - Comeaway 🔐";
+    const subject = "Verify Your Email - Comeaway";
     const html = `
       <!DOCTYPE html>
       <html>
@@ -928,55 +1075,60 @@ Comeaway Team
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Email Verification - Comeaway</title>
           <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-            .container { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; border-radius: 15px; text-align: center; }
-            .content { background: white; color: #333; padding: 30px; border-radius: 10px; margin: 20px 0; }
-            .otp-box { background: #f8f9fa; border: 2px dashed #007bff; padding: 20px; border-radius: 10px; margin: 20px 0; }
-            .otp-code { font-size: 32px; font-weight: bold; color: #007bff; letter-spacing: 5px; }
-            .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; }
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+            .container { background: white; padding: 40px; border-radius: 8px; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #5ad2fe; padding-bottom: 20px; }
+            .header h1 { margin: 0; color: #333; font-size: 24px; }
+            .highlight { color: #5ad2fe; font-weight: bold; }
+            .otp-box { background: #f8f9fa; border: 2px solid #5ad2fe; padding: 20px; border-radius: 6px; margin: 30px 0; text-align: center; }
+            .otp-code { background: #5ad2fe; color: white; font-size: 28px; font-weight: bold; padding: 20px 40px; border-radius: 6px; display: inline-block; letter-spacing: 4px; margin: 15px 0; }
+            .warning { background: #f8f9fa; border-left: 4px solid #5ad2fe; padding: 15px; border-radius: 4px; margin: 20px 0; }
+            .features { background: #f8f9fa; border-left: 4px solid #5ad2fe; padding: 20px; border-radius: 4px; margin: 20px 0; }
+            .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666; }
+            a { color: #5ad2fe; text-decoration: none; }
+            a:hover { text-decoration: underline; }
           </style>
         </head>
         <body>
           <div class="container">
-            <h1>🔐 Email Verification</h1>
-            <p>Hello ${firstName}!</p>
-            
-            <div class="content">
-              <h2>Please verify your email address</h2>
-              
-              <p>Thank you for signing up with Comeaway! To complete your registration, please use the verification code below:</p>
-              
-              <div class="otp-box">
-                <p style="margin: 0; font-size: 18px;">Your Verification Code:</p>
-                <div class="otp-code">${otp}</div>
-              </div>
-              
-              <div class="warning">
-                <strong>⚠️ Important:</strong>
-                <ul style="text-align: left; margin: 10px 0;">
-                  <li>This code will expire in <strong>15 minutes</strong></li>
-                  <li>Do not share this code with anyone</li>
-                  <li>If you didn't request this verification, please ignore this email</li>
-                </ul>
-              </div>
-              
-              <p>Once verified, you'll be able to:</p>
-              <ul style="text-align: left;">
-                <li>🎧 Access your personalized audio content</li>
-                <li>📱 Create and manage playlists</li>
-                <li>⭐ Rate and review sounds</li>
-                <li>🔔 Receive updates about new content</li>
-              </ul>
-              
-              <p style="margin-top: 30px;">
-                <small>If you're having trouble with verification, please <a href="mailto:support@comeaway.com">contact our support team</a>.</small>
-              </p>
+            <div class="header">
+              <h1>Email Verification</h1>
             </div>
             
-            <p style="font-size: 14px; opacity: 0.8;">
-              This is an automated message from Comeaway.<br>
-              Please do not reply to this email.
-            </p>
+            <p>Hello <span class="highlight">${firstName}</span>,</p>
+            
+            <p>Thank you for signing up with Comeaway! To complete your registration, please use the verification code below:</p>
+            
+            <div class="otp-box">
+              <p style="margin: 0 0 10px 0; font-size: 16px; color: #333;">Your Verification Code:</p>
+              <div class="otp-code">${otp}</div>
+            </div>
+            
+            <div class="warning">
+              <strong>Important:</strong>
+              <ul>
+                <li>This code will expire in <strong>15 minutes</strong></li>
+                <li>Do not share this code with anyone</li>
+                <li>If you didn't request this verification, please ignore this email</li>
+              </ul>
+            </div>
+            
+            <div class="features">
+              <h3 style="margin-top: 0; color: #333;">Once verified, you'll be able to:</h3>
+              <ul>
+                <li>Access your personalized audio content</li>
+                <li>Create and manage playlists</li>
+                <li>Rate and review sounds</li>
+                <li>Receive updates about new content</li>
+              </ul>
+            </div>
+            
+            <p>If you're having trouble with verification, please <a href="mailto:support@comeaway.com">contact our support team</a>.</p>
+            
+            <div class="footer">
+              <p>This is an automated message from Comeaway.</p>
+              <p>Please do not reply to this email.</p>
+            </div>
           </div>
         </body>
       </html>

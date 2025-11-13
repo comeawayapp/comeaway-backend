@@ -20,7 +20,7 @@ exports.verifyEmailOTP = async (req, res) => {
     }
 
     // Find the user by email
-    const gotuser = await user.findOne({ email });
+    let gotuser = await user.findOne({ email });
     if (!gotuser) {
       return res.status(404).json({ message: "User not found" });
     }

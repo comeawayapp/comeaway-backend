@@ -394,25 +394,32 @@
  *           schema:
  *             type: object
  *             required:
- *               - assignedTo
- *               - productName
+ *               - id
  *             properties:
- *               assignedTo:
+ *               id:
  *                 type: string
- *                 description: Email address to send access email to
- *               customerName:
- *                 type: string
- *                 description: Customer name (optional)
- *               productName:
- *                 type: string
- *                 description: Product name
+ *                 description: Entitlement ID to send access email for
+ *                 example: "507f1f77bcf86cd799439011"
  *     responses:
  *       200:
  *         description: Access email sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Found entitlement and access email sent successfully"
+ *                 emailSent:
+ *                   type: boolean
+ *                   example: true
+ *                 entitlement:
+ *                   $ref: '#/components/schemas/Entitlement'
  *       400:
- *         description: Invalid email format
+ *         description: Missing required field (id)
  *       404:
- *         description: No entitlements found for this email
+ *         description: Entitlement not found
  *       500:
  *         description: Server error
  */

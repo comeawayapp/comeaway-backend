@@ -448,62 +448,56 @@ exports.importEntitlements = async (req, res) => {
 // Admin: Send access email to user
 exports.sendAccessEmailToUser = async (req, res) => {
   try {
-    const { assignedTo, customerName, productName } = req.body;
+    const { id } = req.body;
 
-    if (!assignedTo || !productName) {
+    if (!id) {
       return res.status(400).json({
-        error: "Missing required fields: assignedTo, productName"
-      });
-    }
-
-    // Validate email format
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!emailRegex.test(assignedTo)) {
-      return res.status(400).json({
-        error: "Invalid email format. Please provide a valid email address"
+        error: "Missing required fields: id"
       });
     }
 
     // Search for existing entitlements assigned to this email
-    const existingEntitlements = await Entitlement.find({
-      assignedTo: assignedTo.toLowerCase().trim(),
-      redeemed: false, // Only unredeemed entitlements
-      expiryDate: { $gt: new Date() } // Only non-expired entitlements
-    });
+    const existingEntitlement = await Entitlement.findById(id);
 
-    if (existingEntitlements.length === 0) {
+    if (!existingEntitlement) {
       // No existing entitlements found - return error
       return res.status(404).json({
         error: "No entitlements found for this email address",
-        assignedTo: assignedTo,
         message: "Please ensure the user has a valid entitlement before requesting email delivery"
       });
     }
 
-    // Found existing entitlements - send access email
-    // Note: This would use a new email template for entitlements
-    // For now, we'll mark that the email was sent
-    existingEntitlements.forEach(entitlement => {
-      entitlement.accessEmailSentAt = new Date();
-      entitlement.accessEmailSentTo = assignedTo.toLowerCase().trim();
-      entitlement.save();
-    });
+    // Send access email to the customer
+    const customerName = existingEntitlement.customerName || 'User';
+    const emailToSend = existingEntitlement.assignedTo || existingEntitlement.customerEmail;
+    
+    try {
+      await emailService.sendEntitlementAccessEmail(
+        emailToSend,
+        customerName,
+        existingEntitlement.entitlementId,
+        existingEntitlement.productName,
+        existingEntitlement.expiryDate
+      );
 
-    res.status(200).json({
-      message: `Found ${existingEntitlements.length} entitlement(s) and access email sent successfully`,
-      entitlements: existingEntitlements.map(e => ({
-        id: e._id,
-        entitlementId: e.entitlementId,
-        customerName: e.customerName,
-        customerEmail: e.customerEmail,
-        assignedTo: e.assignedTo,
-        productName: e.productName,
-        platform: e.platform,
-        expiryDate: e.expiryDate
-      })),
-      emailSent: true,
-      entitlementsSent: existingEntitlements.length
-    });
+      // Mark that the email was sent
+      existingEntitlement.accessEmailSentAt = new Date();
+      existingEntitlement.accessEmailSentTo = emailToSend.toLowerCase().trim();
+      await existingEntitlement.save();
+
+      res.status(200).json({
+        message: `Access email sent successfully`,
+        emailSent: true,
+        emailSentTo: emailToSend,
+        entitlement: existingEntitlement
+      });
+    } catch (emailError) {
+      console.error("Failed to send access email:", emailError);
+      res.status(500).json({
+        error: "Failed to send access email",
+        details: emailError.message
+      });
+    }
 
   } catch (err) {
     res.status(500).json({ error: err.message });
