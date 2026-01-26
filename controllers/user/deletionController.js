@@ -99,16 +99,19 @@ exports.confirmAccountDeletion = async (req, res) => {
     findUser.requestDeletionExpires = undefined;
 
     // Soft delete - mark as inactive and add deletion timestamp
-    findUser.status = "inactive";
-    findUser.deletedAt = new Date();
-    findUser.deletionReason = "User requested account deletion";
-    await findUser.save();
+    // findUser.status = "inactive";
+    // findUser.deletedAt = new Date();
+    // findUser.deletionReason = "User requested account deletion";
+    // await findUser.save();
+
+    // Delete user account
+    await findUser.deleteOne();
 
     // Send confirmation email to admin (optional)
     try {
       await emailService.sendAdminNotification(
         "Account Deletion Confirmed",
-        `User account ${email} has been soft deleted (marked as inactive).`,
+        `User account ${email} has been deleted.`,
         {
           deletedUser: {
             email: findUser.email,

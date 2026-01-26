@@ -31,7 +31,7 @@ const createSound = async (req, res) => {
     const { title, description, categories, status, thumbnail, soundFile, duration } = req.body;
 
     // Validate required fields
-    if (!title || !description || !categories || !status || !thumbnail || !soundFile || !duration) {
+    if (!title || !categories || !status || !thumbnail || !soundFile || !duration) {
       logger.error('Missing required fields for sound creation', {
         title: !!title,
         description: !!description,
@@ -42,7 +42,7 @@ const createSound = async (req, res) => {
         duration: !!duration
       });
       return res.status(400).json({
-        message: "title, description, categories, status, thumbnail, and soundFile are required",
+        message: "title,categories, status, thumbnail, and soundFile are required",
       });
     }
 
@@ -126,7 +126,7 @@ const createSound = async (req, res) => {
 
 exports.getSounds = async (req, res) => {
   try {
-    const sounds = await Sound.find();
+    const sounds = await Sound.find().sort({ addedDate: -1 }); // Sort from newest to oldest
     // Always include duration in the response
     const result = sounds.map((sound) => ({
       _id: sound._id,

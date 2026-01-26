@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const SoundSchema = new mongoose.Schema({
   title: { type: String, required: true },
-  description: { type: String, required: true },
+  description: { type: String },
   soundFile: { type: String },
   thumbnail: { type: String },
   categories: [{ type: mongoose.Schema.Types.ObjectId, ref: "Category" }],
