@@ -20,8 +20,8 @@ const revenueCatWebhook = async (req, res, next) => {
       case "CANCELLATION":
         await handleCancellation(event);
         break;
-      case "TEST":
-        await handleTest(event);
+      case "TRIAL":
+        await handleRenewal(event);
         break;
       default:
         console.log(`Unhandled event type: ${event.type}`);
