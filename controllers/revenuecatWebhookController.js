@@ -51,7 +51,7 @@ const handleSubscriptionExpiration = async (event) => {
       return;
     }
     const subscriptionData = {
-      status: "inactive",
+      status: "canceled",
       canceledAt: new Date(event.expiration_at_ms + oneHourInMilliseconds),
       currentPeriodEnd: new Date(
         event.expiration_at_ms + oneHourInMilliseconds
