@@ -445,7 +445,7 @@ exports.checkExpiredSubscriptions = async (req, res) => {
 
     for (const subscription of expiredSubscriptions) {
       // Update subscription status
-      subscription.status = "inactive";
+      subscription.status = "canceled";
       await subscription.save();
 
       // Update user's Pro status

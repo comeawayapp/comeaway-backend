@@ -24,8 +24,10 @@ const revenueCatWebhook = async (req, res, next) => {
         await handleRenewal(event);
         break;
       default:
+
         console.log(`Unhandled event type: ${event.type}`);
     }
+    res.status(200).json({ type: event.type, message: "Event received", status: "success" });
   } catch (error) {
     console.log(error, "error");
     res
@@ -163,10 +165,6 @@ const handleRenewal = async (event) => {
   } catch (error) {
     console.log(error, "error");
   }
-};
-
-const handleTest = async (event) => {
-  console.log(event, "event");
 };
 
 const handleCancellation = async (event) => {
