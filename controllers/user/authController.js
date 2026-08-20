@@ -20,30 +20,96 @@ exports.login = async (req, res) => {
         .json({ message: "Email and password are required" });
     }
 
+    const passwordStr = typeof password === "string" ? password : String(password);
+    const passwordTrimmed = passwordStr.trim();
+
     // Check if the user exists
     let gotuser = await user.findOne({ email });
     if (!gotuser) {
+      console.log("[LOGIN DEBUG] User not found", {
+        email,
+        emailLength: email?.length,
+        bodyKeys: Object.keys(req.body || {}),
+      });
       return res.status(404).json({ message: "User not found" });
     }
 
     // Check if user is soft deleted
     if (gotuser.status === "inactive" && gotuser.deletedAt) {
+      console.log("[LOGIN DEBUG] Soft-deleted user blocked", {
+        email,
+        userId: gotuser._id?.toString(),
+        status: gotuser.status,
+        deletedAt: gotuser.deletedAt,
+      });
       return res.status(404).json({
         message: "User not found"
       });
     }
 
-    // Check if the password is correct
-    console.log("PASSWORD DEBUG", {
+    const storedPassword = gotuser.password || "";
+    const looksLikeBcrypt = /^\$2[aby]\$\d{2}\$/.test(storedPassword);
+
+    console.log("[LOGIN DEBUG] Password check", {
+      email,
+      userId: gotuser._id?.toString(),
+      status: gotuser.status,
+      authProvider: gotuser.authProvider,
+      isEmailVerified: gotuser.isEmailVerified,
+      bodyKeys: Object.keys(req.body || {}),
       incomingType: typeof password,
-      incomingLength: password?.length,
+      incomingLength: passwordStr.length,
+      incomingTrimmedLength: passwordTrimmed.length,
+      trimChangedLength: passwordStr.length !== passwordTrimmed.length,
+      // char codes only — never log the raw password
+      incomingFirstCharCode: passwordStr.length ? passwordStr.charCodeAt(0) : null,
+      incomingLastCharCode: passwordStr.length
+        ? passwordStr.charCodeAt(passwordStr.length - 1)
+        : null,
       storedType: typeof gotuser.password,
-      storedLength: gotuser.password?.length,
-      storedPrefix: gotuser.password?.substring(0, 4),
+      storedLength: storedPassword.length,
+      storedPrefix: storedPassword.substring(0, 7),
+      looksLikeBcrypt,
+      bcryptRounds: looksLikeBcrypt ? storedPassword.substring(4, 6) : null,
     });
-    
-    const isMatch = await bcrypt.compareSync(password, gotuser.password);
-    console.log("BCRYPT MATCH:", isMatch);
+
+    let isMatchSync = false;
+    let isMatchAsync = false;
+    let compareError = null;
+
+    try {
+      isMatchSync = bcrypt.compareSync(passwordStr, storedPassword);
+      isMatchAsync = await bcrypt.compare(passwordStr, storedPassword);
+    } catch (err) {
+      compareError = err.message;
+    }
+
+    // Also test trimmed password if different (common client bug)
+    let isMatchTrimmed = null;
+    if (passwordStr.length !== passwordTrimmed.length) {
+      try {
+        isMatchTrimmed = await bcrypt.compare(passwordTrimmed, storedPassword);
+      } catch (err) {
+        isMatchTrimmed = `error: ${err.message}`;
+      }
+    }
+
+    let bcryptjsVersion = "unknown";
+    try {
+      bcryptjsVersion = require("bcryptjs/package.json").version;
+    } catch (_) {
+      // ignore
+    }
+
+    console.log("[LOGIN DEBUG] Bcrypt result", {
+      isMatchSync,
+      isMatchAsync,
+      isMatchTrimmed,
+      compareError,
+      bcryptjsVersion,
+    });
+
+    const isMatch = isMatchAsync || isMatchSync;
 
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid credentials" });
@@ -96,6 +162,10 @@ exports.login = async (req, res) => {
 
     // res.status(200).json({ token,gotuser });
   } catch (error) {
+    console.error("[LOGIN DEBUG] Unexpected error", {
+      message: error.message,
+      stack: error.stack,
+    });
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
