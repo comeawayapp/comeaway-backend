@@ -2,7 +2,12 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const user = require("../../models/user");
 const emailService = require("../../services/emailService");
-const { checkAndUpdateProStatus, verifyAppleToken } = require("./helpers");
+const {
+  checkAndUpdateProStatus,
+  verifyAppleToken,
+  isSoftDeleted,
+  freeSoftDeletedUserEmail,
+} = require("./helpers");
 const { checkAndRedeemEntitlement } = require("./entitlementHelper");
 
 // Login
@@ -96,6 +101,12 @@ exports.googleSignIn = async (req, res) => {
     // Check if a user with this email already exists in the database
     let existingUser = await user.findOne({ email });
 
+    // Soft-deleted: free email and create a new account
+    if (existingUser && isSoftDeleted(existingUser)) {
+      await freeSoftDeletedUserEmail(existingUser);
+      existingUser = null;
+    }
+
     if (!existingUser) {
       // Create a new user if one does not exist
       const newUser = new user({
@@ -111,12 +122,6 @@ exports.googleSignIn = async (req, res) => {
       existingUser = await newUser.save();
       console.log("New user created:", newUser);
     } else {
-      // Check if existing user is soft deleted
-      if (existingUser.status === "inactive" && existingUser.deletedAt) {
-        return res.status(404).json({
-          message: "User not found"
-        });
-      }
       console.log("Existing user found:", existingUser);
     }
 
@@ -157,6 +162,12 @@ exports.facebookSignIn = async (req, res) => {
     // Check if a user with this email already exists in the database
     let existingUser = await user.findOne({ email });
 
+    // Soft-deleted: free email and create a new account
+    if (existingUser && isSoftDeleted(existingUser)) {
+      await freeSoftDeletedUserEmail(existingUser);
+      existingUser = null;
+    }
+
     if (!existingUser) {
       // Create a new user if one does not exist
       const newUser = new user({
@@ -179,12 +190,6 @@ exports.facebookSignIn = async (req, res) => {
         existingUser = await user.findById(existingUser._id);
       }
     } else {
-      // Check if existing user is soft deleted
-      if (existingUser.status === "inactive" && existingUser.deletedAt) {
-        return res.status(404).json({
-          message: "User not found"
-        });
-      }
       console.log("Existing user found:", existingUser);
       
       // Check for entitlement and auto-redeem if user is Standard
@@ -246,6 +251,13 @@ exports.appleSignIn = async (req, res) => {
         { appleId, authProvider: "apple" }
       ]
     });
+
+    // Soft-deleted: free email/appleId and create a new account
+    if (existingUser && isSoftDeleted(existingUser)) {
+      await freeSoftDeletedUserEmail(existingUser);
+      existingUser = null;
+    }
+
     if (!existingUser) {
       // Create a new user if one does not exist
       const newUser = new user({
@@ -270,13 +282,6 @@ exports.appleSignIn = async (req, res) => {
         existingUser = await user.findById(existingUser._id);
       }
     } else {
-      // Check if existing user is soft deleted
-      if (existingUser.status === "inactive" && existingUser.deletedAt) {
-        return res.status(404).json({
-          message: "User not found"
-        });
-      }
-      
       // Update Apple ID if not already set
       if (!existingUser.appleId) {
         existingUser.appleId = appleId;
@@ -340,8 +345,15 @@ exports.signup = async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // Check if user already exists and is verified
-    const existingUser = await user.findOne({ email });
+    // Check if user already exists
+    let existingUser = await user.findOne({ email });
+
+    // Soft-deleted: free email and create a new account
+    if (existingUser && isSoftDeleted(existingUser)) {
+      await freeSoftDeletedUserEmail(existingUser);
+      existingUser = null;
+    }
+
     if (existingUser && existingUser.isEmailVerified) {
       return res
         .status(409)

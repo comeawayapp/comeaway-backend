@@ -126,6 +126,37 @@ const sanitizeInput = (str) => {
   return str.trim().replace(/[<>]/g, ""); // Basic XSS prevention
 };
 
+// Soft-deleted = inactive with a deletion timestamp
+function isSoftDeleted(userDoc) {
+  return userDoc?.status === "inactive" && !!userDoc?.deletedAt;
+}
+
+/**
+ * Free the unique email on a soft-deleted user so a new account can use it.
+ * Renames to local+Deleted_{timestamp}@domain and clears appleId if set.
+ * Related data stays attached to this user _id.
+ */
+async function freeSoftDeletedUserEmail(userDoc) {
+  const originalEmail = userDoc.email;
+  const atIndex = originalEmail.lastIndexOf("@");
+
+  if (atIndex === -1) {
+    userDoc.email = `${originalEmail}+Deleted_${Date.now()}`;
+  } else {
+    const local = originalEmail.slice(0, atIndex);
+    const domain = originalEmail.slice(atIndex + 1);
+    userDoc.email = `${local}+Deleted_${Date.now()}@${domain}`;
+  }
+
+  // Allow Apple re-registration to claim the same appleId on a new account
+  if (userDoc.appleId) {
+    userDoc.appleId = undefined;
+  }
+
+  await userDoc.save();
+  return originalEmail;
+}
+
 // Helper function to check rate limiting
 const checkProfileUpdateRateLimit = (user) => {
   const now = new Date();
@@ -157,5 +188,7 @@ module.exports = {
   validateProfileData,
   sanitizeInput,
   checkProfileUpdateRateLimit,
+  isSoftDeleted,
+  freeSoftDeletedUserEmail,
 };
 
