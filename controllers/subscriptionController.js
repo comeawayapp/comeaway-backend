@@ -1,7 +1,9 @@
 const Subscription = require("../models/Subscription");
 const User = require("../models/user");
+const Entitlement = require("../models/Entitlement");
 const stripeService = require("../services/stripeService");
 const emailService = require("../services/emailService");
+const { checkAndUpdateProStatus } = require("./user/helpers");
 
 // Create a new subscription using Stripe
 exports.createSubscription = async (req, res) => {
@@ -430,41 +432,114 @@ exports.cancelSubscription = async (req, res) => {
   }
 };
 
-// Check and update expired subscriptions (can be called by cron job)
+// Check and update expired subscriptions, proExpiresAt users, and expired entitlements
+// Can be called by cron job or admin route
 exports.checkExpiredSubscriptions = async (req, res) => {
   try {
     const currentDate = new Date();
+    let subscriptionExpiredCount = 0;
+    let proExpiresAtCount = 0;
+    let entitlementExpiredCount = 0;
 
-    // Find all active subscriptions that have expired
+    // 1) Stripe/local Subscription documents past endDate
     const expiredSubscriptions = await Subscription.find({
       status: "active",
       endDate: { $lt: currentDate },
     });
 
-    let updatedCount = 0;
-
     for (const subscription of expiredSubscriptions) {
-      // Update subscription status
       subscription.status = "canceled";
       await subscription.save();
 
-      // Update user's Pro status
       await User.findByIdAndUpdate(subscription.userId, {
         isPro: false,
+        activationMode: null,
       });
 
-      updatedCount++;
+      subscriptionExpiredCount++;
       console.log(`Expired subscription for user ${subscription.userId}`);
     }
 
+    // 2) Users with isPro whose proExpiresAt is past
+    const expiredProUsers = await User.find({
+      isPro: true,
+      proExpiresAt: { $lt: currentDate },
+    });
+
+    for (const proUser of expiredProUsers) {
+      proUser.isPro = false;
+      proUser.activationMode = null;
+      await proUser.save();
+      proExpiresAtCount++;
+      console.log(`Expired proExpiresAt for user ${proUser._id}`);
+    }
+
+    // 3) Redeemed entitlements past subscriptionExpiresAt / expiryDate
+    const expiredEntitlements = await Entitlement.find({
+      redeemed: true,
+      redeemedBy: { $ne: null },
+      $or: [
+        { subscriptionExpiresAt: { $lt: currentDate } },
+        {
+          $and: [
+            {
+              $or: [
+                { subscriptionExpiresAt: null },
+                { subscriptionExpiresAt: { $exists: false } },
+              ],
+            },
+            { expiryDate: { $lt: currentDate } },
+          ],
+        },
+      ],
+    });
+
+    for (const entitlement of expiredEntitlements) {
+      const entitledUser = await User.findById(entitlement.redeemedBy);
+      if (!entitledUser || !entitledUser.isPro) {
+        continue;
+      }
+
+      // Don't wipe PRO if they still have an active paid subscription
+      const activeSub = await Subscription.findOne({
+        userId: entitledUser._id,
+        status: { $in: ["active", "trialing"] },
+        $or: [
+          { endDate: { $gt: currentDate } },
+          { currentPeriodEnd: { $gt: currentDate } },
+        ],
+      });
+      if (activeSub) {
+        continue;
+      }
+
+      entitledUser.isPro = false;
+      entitledUser.activationMode = null;
+      if (entitlement.subscriptionExpiresAt || entitlement.expiryDate) {
+        entitledUser.proExpiresAt =
+          entitlement.subscriptionExpiresAt || entitlement.expiryDate;
+      }
+      await entitledUser.save();
+      entitlementExpiredCount++;
+      console.log(
+        `Expired entitlement ${entitlement.entitlementId} downgraded user ${entitledUser._id}`
+      );
+    }
+
+    const total =
+      subscriptionExpiredCount + proExpiresAtCount + entitlementExpiredCount;
+
     if (res) {
       res.status(200).json({
-        message: `Processed ${updatedCount} expired subscriptions`,
-        expiredCount: updatedCount,
+        message: `Processed ${total} expirations`,
+        expiredCount: total,
+        subscriptionExpiredCount,
+        proExpiresAtCount,
+        entitlementExpiredCount,
       });
     }
 
-    return updatedCount;
+    return total;
   } catch (error) {
     console.error("Error checking expired subscriptions:", error);
     if (res) {
@@ -483,44 +558,52 @@ exports.getMySubscription = async (req, res) => {
       return res.status(401).json({ message: "User not authenticated" });
     }
 
-    // Get user details
-    const user = await User.findById(userId).select("isPro proExpiresAt subscriptionStatus subscriptionCurrentPeriodEnd stripeSubscriptionId");
+    // Get user details and persist downgrade if proExpiresAt passed
+    let user = await User.findById(userId).select(
+      "isPro proExpiresAt subscriptionStatus subscriptionCurrentPeriodEnd stripeSubscriptionId activationMode"
+    );
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    user = await checkAndUpdateProStatus(user);
 
     // Get active subscription
     const subscription = await Subscription.findOne({
       userId: userId,
-      status: { $in: ['active', 'trialing'] }
-    }).sort({ currentPeriodEnd: -1 }); // Get the latest active subscription
+      status: { $in: ["active", "trialing"] },
+    }).sort({ currentPeriodEnd: -1 });
 
-    // Check if subscription is expired
     const currentDate = new Date();
-    const isExpired = subscription ? 
-      subscription.currentPeriodEnd < currentDate : 
-      (user.proExpiresAt ? currentDate > user.proExpiresAt : true);
+    const isExpired = subscription
+      ? subscription.currentPeriodEnd < currentDate
+      : user.proExpiresAt
+        ? currentDate > user.proExpiresAt
+        : false;
 
-    // Determine user type and activation method
-    const userType = (user.isPro && !isExpired) ? "Pro" : "Standard";
+    const userType = user.isPro && !isExpired ? "Pro" : "Standard";
     const activationMethod = user.activationMode || "None";
-    
+
     res.status(200).json({
       isPro: user.isPro && !isExpired,
       proExpiresAt: user.proExpiresAt,
-      subscription: subscription ? {
-        id: subscription._id,
-        stripeSubscriptionId: subscription.stripeSubscriptionId,
-        status: subscription.status,
-        currentPeriodStart: subscription.currentPeriodStart,
-        currentPeriodEnd: subscription.currentPeriodEnd,
-        cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
-        isActive: subscription.isActive,
-        isInTrial: subscription.isInTrial,
-        daysUntilRenewal: subscription.getDaysUntilRenewal()
-      } : null,
+      subscription: subscription
+        ? {
+            id: subscription._id,
+            stripeSubscriptionId: subscription.stripeSubscriptionId,
+            status: subscription.status,
+            currentPeriodStart: subscription.currentPeriodStart,
+            currentPeriodEnd: subscription.currentPeriodEnd,
+            cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+            isActive: subscription.isActive,
+            isInTrial: subscription.isInTrial,
+            daysUntilRenewal: subscription.getDaysUntilRenewal(),
+          }
+        : null,
       isExpired: isExpired,
       userType: userType,
       activationMethod: activationMethod,
       subscriptionStatus: user.subscriptionStatus,
-      subscriptionCurrentPeriodEnd: user.subscriptionCurrentPeriodEnd
+      subscriptionCurrentPeriodEnd: user.subscriptionCurrentPeriodEnd,
     });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });

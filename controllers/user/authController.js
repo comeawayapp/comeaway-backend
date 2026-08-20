@@ -138,6 +138,15 @@ exports.googleSignIn = async (req, res) => {
       await existingUser.save();
     }
 
+    // Downgrade if proExpiresAt has passed
+    existingUser = await checkAndUpdateProStatus(existingUser);
+
+    // Auto-redeem entitlement if still Standard
+    if (!existingUser.isPro) {
+      await checkAndRedeemEntitlement(existingUser.email, existingUser._id);
+      existingUser = await user.findById(existingUser._id);
+    }
+
     // Generate a JWT token for the user
     const token = jwt.sign({ _id: existingUser._id }, process.env.JWT_SECRET, {
       expiresIn: "30d",
@@ -154,6 +163,8 @@ exports.googleSignIn = async (req, res) => {
         email: existingUser.email,
         phoneNumber: existingUser.phoneNumber || "",
         photo: existingUser.photo, // Include photo if available
+        isPro: existingUser.isPro,
+        proExpiresAt: existingUser.proExpiresAt,
       },
     });
 
@@ -196,24 +207,18 @@ exports.facebookSignIn = async (req, res) => {
       });
 
       existingUser = await newUser.save();
+    } else if (existingUser.email !== normalizedEmail) {
+      existingUser.email = normalizedEmail;
+      await existingUser.save();
+    }
 
-      // Check for entitlement and auto-redeem if user is Standard
-      if (!existingUser.isPro) {
-        await checkAndRedeemEntitlement(existingUser.email, existingUser._id);
-        // Refresh user data after potential entitlement redemption
-        existingUser = await user.findById(existingUser._id);
-      }
-    } else {
-      if (existingUser.email !== normalizedEmail) {
-        existingUser.email = normalizedEmail;
-        await existingUser.save();
-      }
-      // Check for entitlement and auto-redeem if user is Standard
-      if (!existingUser.isPro) {
-        await checkAndRedeemEntitlement(existingUser.email, existingUser._id);
-        // Refresh user data after potential entitlement redemption
-        existingUser = await user.findById(existingUser._id);
-      }
+    // Downgrade if proExpiresAt has passed
+    existingUser = await checkAndUpdateProStatus(existingUser);
+
+    // Auto-redeem entitlement if still Standard
+    if (!existingUser.isPro) {
+      await checkAndRedeemEntitlement(existingUser.email, existingUser._id);
+      existingUser = await user.findById(existingUser._id);
     }
 
     // Generate a JWT token for the user
@@ -232,6 +237,8 @@ exports.facebookSignIn = async (req, res) => {
         email: existingUser.email,
         phoneNumber: existingUser.phoneNumber || "",
         photo: existingUser.photo, // Include photo if available
+        isPro: existingUser.isPro,
+        proExpiresAt: existingUser.proExpiresAt,
       },
     });
     // Call the migration function

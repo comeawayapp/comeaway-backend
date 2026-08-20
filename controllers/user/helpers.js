@@ -3,45 +3,27 @@ const jwksRsa = require('jwks-rsa');
 const user = require("../../models/user");
 
 // Helper to check and update Pro status
+// Only downgrade when proExpiresAt is set and in the past (missing = lifetime / unset PRO)
 async function checkAndUpdateProStatus(userDoc) {
-  // Defensive: ensure proExpiresAt is a valid date
-  let expired = false;
-  let activationCodeExpired = false;
-  
-  if (userDoc.isPro) {
-    // Check subscription expiry
-    if (
-      !userDoc.proExpiresAt ||
-      isNaN(new Date(userDoc.proExpiresAt).getTime())
-    ) {
-      // No expiry date or invalid date: treat as expired
-      expired = true;
-    } else {
-      // Compare using UTC to avoid timezone issues
-      const now = new Date();
-      const expiry = new Date(userDoc.proExpiresAt);
-      if (expiry.getTime() < now.getTime()) {
-        expired = true;
-      }
-    }
-    
-    // Check activation code expiry if user was activated by code
-    if (userDoc.activationMode === 'code' && userDoc.proExpiresAt) {
-      const now = new Date();
-      const codeExpiry = new Date(userDoc.proExpiresAt);
-      if (codeExpiry.getTime() < now.getTime()) {
-        activationCodeExpired = true;
-      }
-    }
+  if (!userDoc || !userDoc.isPro) {
+    return userDoc;
   }
-  
-  // Downgrade to standard user if either subscription or activation code expired
-  if (userDoc.isPro && (expired || activationCodeExpired)) {
+
+  if (
+    !userDoc.proExpiresAt ||
+    isNaN(new Date(userDoc.proExpiresAt).getTime())
+  ) {
+    return userDoc;
+  }
+
+  const now = new Date();
+  const expiry = new Date(userDoc.proExpiresAt);
+  if (expiry.getTime() < now.getTime()) {
     userDoc.isPro = false;
-    userDoc.activationMode = null; // Clear activation mode when expired
+    userDoc.activationMode = null;
     await userDoc.save();
   }
-  
+
   return userDoc;
 }
 

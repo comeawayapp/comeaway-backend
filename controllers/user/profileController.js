@@ -4,6 +4,7 @@ const {
   validateProfileData,
   sanitizeInput,
   checkProfileUpdateRateLimit,
+  checkAndUpdateProStatus,
 } = require("./helpers");
 
 // Get Current User Profile
@@ -13,7 +14,7 @@ exports.getCurrentUserProfile = async (req, res) => {
     const userId = req.user._id;
 
     // Find user and exclude sensitive fields
-    const gotuser = await user
+    let gotuser = await user
       .findById(userId)
       .select(
         "-password -resetPasswordToken -resetPasswordExpires -activeResetToken -resetTokenExpires -emailVerificationOTP -emailVerificationExpires -profileUpdateCount -profileLastUpdated"
@@ -25,6 +26,10 @@ exports.getCurrentUserProfile = async (req, res) => {
         message: "User not found",
       });
     }
+
+    // Downgrade if proExpiresAt has passed
+    gotuser = await checkAndUpdateProStatus(gotuser);
+
     // Determine user type and activation method
     const userType = gotuser.isPro ? "Pro" : "Standard";
     const activationMethod = gotuser.activationMode || "None";
