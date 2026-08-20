@@ -7,6 +7,36 @@ if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
 }
 
+const SENSITIVE_KEYS = [
+  'password',
+  'newPassword',
+  'oldPassword',
+  'confirmPassword',
+  'token',
+  'otp',
+  'authorization',
+];
+
+function redactSensitive(value) {
+  if (value == null || typeof value !== 'object') {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(redactSensitive);
+  }
+  const redacted = {};
+  for (const [key, val] of Object.entries(value)) {
+    if (SENSITIVE_KEYS.some((k) => key.toLowerCase().includes(k.toLowerCase()))) {
+      redacted[key] = '[REDACTED]';
+    } else if (val && typeof val === 'object') {
+      redacted[key] = redactSensitive(val);
+    } else {
+      redacted[key] = val;
+    }
+  }
+  return redacted;
+}
+
 // Logger utility class
 class Logger {
   constructor() {
@@ -16,17 +46,18 @@ class Logger {
   // Write to both console and file
   write(level, message, data = null) {
     const timestamp = new Date().toISOString();
+    const safeData = data ? redactSensitive(data) : null;
     const logEntry = {
       timestamp,
       level,
       message,
-      data: data || null
+      data: safeData
     };
 
     // Console output
     const consoleMessage = `[${timestamp}] ${level.toUpperCase()}: ${message}`;
-    if (data) {
-      console.log(consoleMessage, data);
+    if (safeData) {
+      console.log(consoleMessage, safeData);
     } else {
       console.log(consoleMessage);
     }
@@ -100,4 +131,4 @@ class Logger {
 }
 
 const logger = new Logger();
-module.exports = logger; 
+module.exports = logger;
