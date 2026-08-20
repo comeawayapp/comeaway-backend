@@ -20,9 +20,6 @@ exports.login = async (req, res) => {
         .json({ message: "Email and password are required" });
     }
 
-    const passwordStr =
-      typeof password === "string" ? password : String(password);
-
     // Check if the user exists
     let gotuser = await user.findOne({ email });
     if (!gotuser) {
@@ -36,36 +33,8 @@ exports.login = async (req, res) => {
       });
     }
 
-    const storedPassword = gotuser.password || "";
-    const looksLikeBcrypt = /^\$2[aby]\$\d{2}\$/.test(storedPassword);
-
-    // Opt-in: set DEBUG_LOGIN=true in .env
-    if (process.env.DEBUG_LOGIN === "true") {
-      console.log("[LOGIN DEBUG] Password check", {
-        email,
-        userId: gotuser._id?.toString(),
-        status: gotuser.status,
-        authProvider: gotuser.authProvider,
-        isEmailVerified: gotuser.isEmailVerified,
-        incomingLength: passwordStr.length,
-        storedLength: storedPassword.length,
-        storedPrefix: storedPassword.substring(0, 7),
-        looksLikeBcrypt,
-      });
-    }
-
-    let isMatch = false;
-    try {
-      isMatch = await bcrypt.compare(passwordStr, storedPassword);
-    } catch (err) {
-      console.error("[LOGIN DEBUG] bcrypt.compare error", err.message);
-      isMatch = false;
-    }
-
-    if (process.env.DEBUG_LOGIN === "true") {
-      console.log("[LOGIN DEBUG] Bcrypt result", { isMatch, looksLikeBcrypt });
-    }
-
+    // Check if the password is correct
+    const isMatch = await bcrypt.compare(String(password), gotuser.password);
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
@@ -96,7 +65,7 @@ exports.login = async (req, res) => {
     // Determine user type and activation method
     const userType = gotuser.isPro ? "Pro" : "Standard";
     const activationMethod = gotuser.activationMode || "None";
-    
+
     return res.status(200).json({
       message: "Login successful",
       token,
@@ -114,13 +83,7 @@ exports.login = async (req, res) => {
         activationMethod: activationMethod,
       },
     });
-
-    // res.status(200).json({ token,gotuser });
   } catch (error) {
-    console.error("[LOGIN DEBUG] Unexpected error", {
-      message: error.message,
-      stack: error.stack,
-    });
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -128,7 +91,6 @@ exports.login = async (req, res) => {
 exports.googleSignIn = async (req, res) => {
   try {
     const { idToken, user: googleUser } = req.body; // Extract data from the request body
-    console.log(idToken, googleUser, "Google User");
 
     // Extract user information from the Google response
     const { email, givenName, familyName, photo } = googleUser;
@@ -155,9 +117,6 @@ exports.googleSignIn = async (req, res) => {
       });
 
       existingUser = await newUser.save();
-      console.log("New user created:", newUser);
-    } else {
-      console.log("Existing user found:", existingUser);
     }
 
     // Generate a JWT token for the user
@@ -192,8 +151,6 @@ exports.facebookSignIn = async (req, res) => {
     const { _tokenResponse } = req.body; // Extract the response from the request body
     const { email, firstName, lastName, photoUrl: photo } = _tokenResponse;
 
-    console.log("Facebook Sign-In Data:", firstName);
-
     // Check if a user with this email already exists in the database
     let existingUser = await user.findOne({ email });
 
@@ -216,8 +173,7 @@ exports.facebookSignIn = async (req, res) => {
       });
 
       existingUser = await newUser.save();
-      console.log("New user created:", newUser);
-      
+
       // Check for entitlement and auto-redeem if user is Standard
       if (!existingUser.isPro) {
         await checkAndRedeemEntitlement(existingUser.email, existingUser._id);
@@ -225,8 +181,6 @@ exports.facebookSignIn = async (req, res) => {
         existingUser = await user.findById(existingUser._id);
       }
     } else {
-      console.log("Existing user found:", existingUser);
-      
       // Check for entitlement and auto-redeem if user is Standard
       if (!existingUser.isPro) {
         await checkAndRedeemEntitlement(existingUser.email, existingUser._id);
@@ -308,8 +262,7 @@ exports.appleSignIn = async (req, res) => {
       });
 
       existingUser = await newUser.save();
-      console.log("New Apple user created:", newUser);
-      
+
       // Check for entitlement and auto-redeem if user is Standard
       if (!existingUser.isPro) {
         await checkAndRedeemEntitlement(existingUser.email, existingUser._id);
@@ -323,9 +276,7 @@ exports.appleSignIn = async (req, res) => {
         existingUser.authProvider = "apple";
         await existingUser.save();
       }
-      
-      console.log("Existing Apple user found:", existingUser);
-      
+
       // Check for entitlement and auto-redeem if user is Standard
       if (!existingUser.isPro) {
         await checkAndRedeemEntitlement(existingUser.email, existingUser._id);

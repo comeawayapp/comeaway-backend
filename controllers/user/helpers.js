@@ -59,7 +59,6 @@ async function verifyAppleToken(identityToken) {
 
     // Get the key ID from the token header
     const decoded = jwt.decode(identityToken, { complete: true });
-    console.log(decoded, "Decoded");
     if (!decoded || !decoded.header || !decoded.header.kid) {
       throw new Error('Invalid token format');
     }
