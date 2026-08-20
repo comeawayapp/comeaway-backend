@@ -8,7 +8,11 @@ const {
   isSoftDeleted,
   freeSoftDeletedUserEmail,
 } = require("./helpers");
-const { checkAndRedeemEntitlement } = require("./entitlementHelper");
+const {
+  checkAndRedeemEntitlement,
+  normalizeEmail,
+  findUserByEmailCI,
+} = require("./entitlementHelper");
 
 // Login
 exports.login = async (req, res) => {
@@ -20,8 +24,10 @@ exports.login = async (req, res) => {
         .json({ message: "Email and password are required" });
     }
 
-    // Check if the user exists
-    let gotuser = await user.findOne({ email });
+    const normalizedEmail = normalizeEmail(email);
+
+    // Case-insensitive email lookup
+    let gotuser = await findUserByEmailCI(normalizedEmail);
     if (!gotuser) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -31,6 +37,12 @@ exports.login = async (req, res) => {
       return res.status(404).json({
         message: "User not found",
       });
+    }
+
+    // Normalize stored email if mixed case
+    if (gotuser.email !== normalizedEmail) {
+      gotuser.email = normalizedEmail;
+      await gotuser.save();
     }
 
     // Check if the password is correct
@@ -94,9 +106,13 @@ exports.googleSignIn = async (req, res) => {
 
     // Extract user information from the Google response
     const { email, givenName, familyName, photo } = googleUser;
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
+      return res.status(400).json({ message: "Email is required" });
+    }
 
     // Check if a user with this email already exists in the database
-    let existingUser = await user.findOne({ email });
+    let existingUser = await findUserByEmailCI(normalizedEmail);
 
     // Soft-deleted: free email and create a new account
     if (existingUser && isSoftDeleted(existingUser)) {
@@ -109,7 +125,7 @@ exports.googleSignIn = async (req, res) => {
       const newUser = new user({
         firstname: givenName,
         lastname: familyName,
-        email,
+        email: normalizedEmail,
         password: "12345678", // Leave password empty for Google sign-ins
         role: "user", // Default role
         status: "active", // Default status
@@ -117,6 +133,9 @@ exports.googleSignIn = async (req, res) => {
       });
 
       existingUser = await newUser.save();
+    } else if (existingUser.email !== normalizedEmail) {
+      existingUser.email = normalizedEmail;
+      await existingUser.save();
     }
 
     // Generate a JWT token for the user
@@ -150,9 +169,13 @@ exports.facebookSignIn = async (req, res) => {
   try {
     const { _tokenResponse } = req.body; // Extract the response from the request body
     const { email, firstName, lastName, photoUrl: photo } = _tokenResponse;
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
+      return res.status(400).json({ message: "Email is required" });
+    }
 
     // Check if a user with this email already exists in the database
-    let existingUser = await user.findOne({ email });
+    let existingUser = await findUserByEmailCI(normalizedEmail);
 
     // Soft-deleted: free email and create a new account
     if (existingUser && isSoftDeleted(existingUser)) {
@@ -165,7 +188,7 @@ exports.facebookSignIn = async (req, res) => {
       const newUser = new user({
         firstname: firstName,
         lastname: lastName,
-        email,
+        email: normalizedEmail,
         password: "12345678",
         role: "user", // Default role
         status: "active", // Default status
@@ -181,6 +204,10 @@ exports.facebookSignIn = async (req, res) => {
         existingUser = await user.findById(existingUser._id);
       }
     } else {
+      if (existingUser.email !== normalizedEmail) {
+        existingUser.email = normalizedEmail;
+        await existingUser.save();
+      }
       // Check for entitlement and auto-redeem if user is Standard
       if (!existingUser.isPro) {
         await checkAndRedeemEntitlement(existingUser.email, existingUser._id);
@@ -232,14 +259,16 @@ exports.appleSignIn = async (req, res) => {
     }
 
     const { email, sub: appleId, email_verified } = appleUserData;
-    
-    // Check if a user with this email already exists in the database
-    let existingUser = await user.findOne({
-      $or: [
-        { email },
-        { appleId, authProvider: "apple" }
-      ]
-    });
+    const normalizedEmail = normalizeEmail(email);
+
+    // Check if a user with this email or appleId already exists
+    let existingUser = null;
+    if (normalizedEmail) {
+      existingUser = await findUserByEmailCI(normalizedEmail);
+    }
+    if (!existingUser && appleId) {
+      existingUser = await user.findOne({ appleId, authProvider: "apple" });
+    }
 
     // Soft-deleted: free email/appleId and create a new account
     if (existingUser && isSoftDeleted(existingUser)) {
@@ -248,11 +277,14 @@ exports.appleSignIn = async (req, res) => {
     }
 
     if (!existingUser) {
+      if (!normalizedEmail) {
+        return res.status(400).json({ message: "Email is required from Apple Sign-In" });
+      }
       // Create a new user if one does not exist
       const newUser = new user({
         firstname: appleUser?.name?.firstName || "Apple",
         lastname: appleUser?.name?.lastName || "User",
-        email,
+        email: normalizedEmail,
         password: appleId, // Default password for Apple sign-ins
         role: "user", // Default role
         status: "active", // Default status
@@ -274,8 +306,11 @@ exports.appleSignIn = async (req, res) => {
       if (!existingUser.appleId) {
         existingUser.appleId = appleId;
         existingUser.authProvider = "apple";
-        await existingUser.save();
       }
+      if (normalizedEmail && existingUser.email !== normalizedEmail) {
+        existingUser.email = normalizedEmail;
+      }
+      await existingUser.save();
 
       // Check for entitlement and auto-redeem if user is Standard
       if (!existingUser.isPro) {
@@ -331,8 +366,10 @@ exports.signup = async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // Check if user already exists
-    let existingUser = await user.findOne({ email });
+    const normalizedEmail = normalizeEmail(email);
+
+    // Check if user already exists (case-insensitive)
+    let existingUser = await findUserByEmailCI(normalizedEmail);
 
     // Soft-deleted: free email and create a new account
     if (existingUser && isSoftDeleted(existingUser)) {
@@ -358,6 +395,7 @@ exports.signup = async (req, res) => {
       // Update existing unverified user
       existingUser.firstname = firstname;
       existingUser.lastname = lastname;
+      existingUser.email = normalizedEmail;
       existingUser.password = hashedPassword;
       existingUser.emailVerificationOTP = otp.toString();
       existingUser.emailVerificationExpires = new Date(
@@ -369,7 +407,7 @@ exports.signup = async (req, res) => {
       const newUser = new user({
         firstname,
         lastname,
-        email,
+        email: normalizedEmail,
         password: hashedPassword,
         emailVerificationOTP: otp.toString(),
         emailVerificationExpires: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
@@ -380,11 +418,11 @@ exports.signup = async (req, res) => {
 
     // Send verification OTP email
     try {
-      await emailService.sendVerificationOTP(email, firstname, otp);
+      await emailService.sendVerificationOTP(normalizedEmail, firstname, otp);
       res.status(200).json({
         message:
           "Verification OTP sent to your email. Please verify to complete registration.",
-        email: email,
+        email: normalizedEmail,
       });
     } catch (emailError) {
       console.error("Failed to send verification email:", emailError);

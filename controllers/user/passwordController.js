@@ -2,6 +2,10 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const user = require("../../models/user");
 const emailService = require("../../services/emailService");
+const {
+  normalizeEmail,
+  findUserByEmailCI,
+} = require("./entitlementHelper");
 
 // Forgot Password
 exports.forgotPassword = async (req, res) => {
@@ -13,14 +17,14 @@ exports.forgotPassword = async (req, res) => {
       return res.status(400).json({ message: "Email is required" });
     }
 
-    // Find the user by email
-    const gotuser = await user.findOne({ email });
-    console.log(gotuser, "Gotuser");
+    const normalizedEmail = normalizeEmail(email);
+
+    // Find the user by email (case-insensitive)
+    const gotuser = await findUserByEmailCI(normalizedEmail);
 
     if (!gotuser) {
       return res.status(404).json({ message: "User not found" });
     }
-    console.log(gotuser, "Gotuser");
 
     // Generate a 4-digit OTP
     const generateRandomOTP = () => {
@@ -35,16 +39,8 @@ exports.forgotPassword = async (req, res) => {
     gotuser.activeResetToken = undefined;
     gotuser.resetTokenExpires = undefined;
 
-    // DEBUG: Log values before saving
-    console.log("Generated OTP:", otp);
-    console.log("Expiry Time:", gotuser.resetPasswordExpires);
-
     try {
-      // Save the user with the OTP and expiry fields
       await gotuser.save();
-
-      // DEBUG: Confirm the user was saved successfully
-      console.log("User saved successfully with OTP and expiry.");
     } catch (saveError) {
       console.error("Error saving user:", saveError);
       return res
@@ -53,7 +49,10 @@ exports.forgotPassword = async (req, res) => {
     }
 
     // Send the OTP via email
-    const emailResult = await emailService.sendPasswordResetOTP(email, otp);
+    const emailResult = await emailService.sendPasswordResetOTP(
+      normalizedEmail,
+      otp
+    );
 
     if (!emailResult.success) {
       console.error("Error sending email:", emailResult.error);
@@ -150,16 +149,11 @@ exports.verifyOtp = async (req, res) => {
       return res.status(400).json({ message: "OTP must be a 4-digit number" });
     }
 
-    // Find the user by email
-    const gotuser = await user.findOne({ email });
+    // Find the user by email (case-insensitive)
+    const gotuser = await findUserByEmailCI(normalizeEmail(email));
     if (!gotuser) {
       return res.status(404).json({ message: "User not found" });
     }
-
-    console.log("Provided OTP:", otpString);
-    console.log("Stored OTP:", gotuser.resetPasswordToken);
-    console.log("Token Expiry Time:", gotuser.resetPasswordExpires);
-    console.log("Current Time:", Date.now());
 
     // Check if OTP exists and hasn't expired
     if (!gotuser.resetPasswordToken || !gotuser.resetPasswordExpires) {

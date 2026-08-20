@@ -1,81 +1,92 @@
 const bcrypt = require("bcryptjs");
 const user = require("../../models/user");
+const emailService = require("../../services/emailService");
 
 // Get All Users with Search and Filtering
 exports.getAllUsers = async (req, res) => {
   try {
     const { query, type, activationMethod } = req.query;
-    
-    // Build the base filter for active users
+
+    // Active users only: not soft-deleted; status not inactive (or missing status treated as active)
     let filter = {
-      $or: [
-        { status: "active" },
-        { status: { $exists: false } },
-        { deletedAt: { $exists: false } }
-      ]
+      $and: [
+        {
+          $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }],
+        },
+        {
+          $or: [
+            { status: "active" },
+            { status: { $exists: false } },
+            { status: null },
+          ],
+        },
+      ],
     };
-    
+
     // Add search query filter
     if (query) {
-      const searchRegex = new RegExp(query, 'i'); // Case-insensitive search
-      filter.$and = [{
+      const searchRegex = new RegExp(query, "i");
+      filter.$and.push({
         $or: [
           { firstname: searchRegex },
           { lastname: searchRegex },
-          { email: searchRegex }
-        ]
-      }];
+          { email: searchRegex },
+        ],
+      });
     }
-    
-    // Add user type filter
-    if (type) {
-      if (!['standard', 'pro'].includes(type.toLowerCase())) {
+
+    // Add user type filter (ignore all / All User Types / empty)
+    if (type && !["all", "all user types"].includes(String(type).toLowerCase())) {
+      if (!["standard", "pro"].includes(String(type).toLowerCase())) {
         return res.status(400).json({
-          message: "Invalid user type. Use 'standard' or 'pro'",
-          allowedValues: ["standard", "pro"]
+          message: "Invalid user type. Use 'standard', 'pro', or 'all'",
+          allowedValues: ["standard", "pro", "all"],
         });
       }
-      
-      if (type.toLowerCase() === 'pro') {
+
+      if (String(type).toLowerCase() === "pro") {
         filter.isPro = true;
       } else {
         filter.isPro = false;
       }
     }
-    
+
     // Add activation method filter
     if (activationMethod) {
-      if (!['code', 'card', 'none'].includes(activationMethod.toLowerCase())) {
+      if (!["code", "card", "none"].includes(activationMethod.toLowerCase())) {
         return res.status(400).json({
           message: "Invalid activation method. Use 'code', 'card', or 'none'",
-          allowedValues: ["code", "card", "none"]
+          allowedValues: ["code", "card", "none"],
         });
       }
-      
-      if (activationMethod.toLowerCase() === 'none') {
-        filter.$or = filter.$or || [];
-        filter.$or.push({ activationMode: { $exists: false } });
-        filter.$or.push({ activationMode: null });
+
+      if (activationMethod.toLowerCase() === "none") {
+        filter.$and.push({
+          $or: [
+            { activationMode: { $exists: false } },
+            { activationMode: null },
+          ],
+        });
       } else {
         filter.activationMode = activationMethod.toLowerCase();
       }
     }
-    
+
     // Execute the query
     const users = await user.find(filter).select("-password");
-    
+
     // Add user type and activation method to each user
-    const usersWithType = users.map(userDoc => {
+    const usersWithType = users.map((userDoc) => {
       const userType = userDoc.isPro ? "Pro" : "Standard";
-      const activationMethod = userDoc.activationMode || "None";
-      
+      const activationMethodValue = userDoc.activationMode || "None";
+
       return {
         ...userDoc.toObject(),
         userType: userType,
-        activationMethod: activationMethod
+        activationMethod: activationMethodValue,
       };
     });
-    
+
     // Return response with search/filter info
     res.status(200).json({
       users: usersWithType,
@@ -83,8 +94,8 @@ exports.getAllUsers = async (req, res) => {
       filters: {
         query: query || null,
         type: type || null,
-        activationMethod: activationMethod || null
-      }
+        activationMethod: activationMethod || null,
+      },
     });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -231,7 +242,7 @@ exports.updateUserStatus = async (req, res) => {
 exports.updatePlanStatus = async (req, res) => {
   try {
     const { planStatus } = req.body;
-    if (!planStatus) {  
+    if (!planStatus) {
       return res.status(400).json({
         message: "Plan Status is required",
         allowedValues: ["pro", "standard"],
@@ -256,8 +267,33 @@ exports.updatePlanStatus = async (req, res) => {
     }
 
     const previousPlanStatus = gotuser.isPro;
-    gotuser.isPro = planStatus === "pro" ? true : false;
+    const upgradingToPro = planStatus === "pro";
+
+    gotuser.isPro = upgradingToPro;
+
+    if (upgradingToPro) {
+      // Ensure expiry is set so scheduled checks don't immediately downgrade
+      if (!gotuser.proExpiresAt || new Date(gotuser.proExpiresAt) < new Date()) {
+        const fiveYears = new Date();
+        fiveYears.setFullYear(fiveYears.getFullYear() + 5);
+        gotuser.proExpiresAt = fiveYears;
+      }
+      if (!gotuser.activationMode) {
+        gotuser.activationMode = "code";
+      }
+    }
+
     await gotuser.save();
+
+    // Notify user when upgraded to PRO
+    if (upgradingToPro && !previousPlanStatus) {
+      const firstName = gotuser.firstname || "User";
+      emailService
+        .sendAccessReadyEmail(gotuser.email, firstName)
+        .catch((error) => {
+          console.error("Failed to send Pro upgrade email:", error);
+        });
+    }
 
     res.status(200).json({
       message: "User status updated successfully",
@@ -268,8 +304,10 @@ exports.updatePlanStatus = async (req, res) => {
         lastname: gotuser.lastname,
         previousPlanStatus: previousPlanStatus,
         currentPlanStatus: planStatus,
+        isPro: gotuser.isPro,
+        proExpiresAt: gotuser.proExpiresAt,
       },
-        action: planStatus === "pro" ? "USER_ACTIVATED" : "USER_DEACTIVATED",
+      action: upgradingToPro ? "USER_ACTIVATED" : "USER_DEACTIVATED",
     });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });

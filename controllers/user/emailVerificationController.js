@@ -1,7 +1,11 @@
 const jwt = require("jsonwebtoken");
 const user = require("../../models/user");
 const emailService = require("../../services/emailService");
-const { checkAndRedeemEntitlement } = require("./entitlementHelper");
+const {
+  checkAndRedeemEntitlement,
+  normalizeEmail,
+  findUserByEmailCI,
+} = require("./entitlementHelper");
 
 // Email Verification OTP
 exports.verifyEmailOTP = async (req, res) => {
@@ -19,8 +23,10 @@ exports.verifyEmailOTP = async (req, res) => {
       return res.status(400).json({ message: "OTP must be a 4-digit number" });
     }
 
-    // Find the user by email
-    let gotuser = await user.findOne({ email });
+    const normalizedEmail = normalizeEmail(email);
+
+    // Find the user by email (case-insensitive)
+    let gotuser = await findUserByEmailCI(normalizedEmail);
     if (!gotuser) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -59,7 +65,7 @@ exports.verifyEmailOTP = async (req, res) => {
     }
 
     // Send welcome email after successful verification
-    emailService.sendWelcomeEmail(email, gotuser.firstname).catch((error) => {
+    emailService.sendWelcomeEmail(normalizedEmail, gotuser.firstname).catch((error) => {
       console.error("Failed to send welcome email:", error);
     });
 
@@ -101,8 +107,10 @@ exports.resendEmailVerificationOTP = async (req, res) => {
       return res.status(400).json({ message: "Email is required" });
     }
 
-    // Find the user by email
-    const gotuser = await user.findOne({ email });
+    const normalizedEmail = normalizeEmail(email);
+
+    // Find the user by email (case-insensitive)
+    const gotuser = await findUserByEmailCI(normalizedEmail);
     if (!gotuser) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -124,11 +132,11 @@ exports.resendEmailVerificationOTP = async (req, res) => {
 
     // Send verification OTP email
     try {
-      await emailService.sendVerificationOTP(email, gotuser.firstname, otp);
+      await emailService.sendVerificationOTP(normalizedEmail, gotuser.firstname, otp);
       res.status(200).json({
         message:
           "Verification OTP resent successfully. Please check your email.",
-        email: email,
+        email: normalizedEmail,
       });
     } catch (emailError) {
       console.error("Failed to resend verification email:", emailError);

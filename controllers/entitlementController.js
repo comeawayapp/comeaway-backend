@@ -1,6 +1,9 @@
 const Entitlement = require("../models/Entitlement");
 const User = require("../models/user");
 const emailService = require("../services/emailService");
+const {
+  autoRedeemEntitlementIfUserExists,
+} = require("./user/entitlementHelper");
 
 // Valid platform values
 const VALID_PLATFORMS = ['shopify', 'amazon', 'google_play', 'apple_iap', 'stripe', 'other'];
@@ -80,9 +83,24 @@ exports.createEntitlement = async (req, res) => {
       notes: notes || undefined,
     });
 
+    // If user already exists, redeem immediately and upgrade to PRO
+    const { userUpgraded, userAlreadyPro, user, redeemResult } =
+      await autoRedeemEntitlementIfUserExists(newEntitlement);
+
+    // Reload entitlement after possible redemption
+    const entitlement = await Entitlement.findById(newEntitlement._id);
+
     res.status(201).json({
-      message: "Entitlement created successfully",
-      entitlement: newEntitlement
+      message: userUpgraded
+        ? "Entitlement created and user upgraded to PRO"
+        : userAlreadyPro
+          ? "Entitlement created and linked to existing PRO user"
+          : "Entitlement created successfully",
+      entitlement,
+      userUpgraded: !!userUpgraded,
+      userAlreadyPro: !!userAlreadyPro,
+      userId: user?._id || null,
+      redeemResult: redeemResult || null,
     });
 
   } catch (err) {
@@ -425,7 +443,16 @@ exports.importEntitlements = async (req, res) => {
           notes: notes || undefined,
         });
 
-        results.created.push(newEntitlement);
+        const { userUpgraded, userAlreadyPro, user } =
+          await autoRedeemEntitlementIfUserExists(newEntitlement);
+
+        const entitlement = await Entitlement.findById(newEntitlement._id);
+        results.created.push({
+          entitlement,
+          userUpgraded: !!userUpgraded,
+          userAlreadyPro: !!userAlreadyPro,
+          userId: user?._id || null,
+        });
 
       } catch (error) {
         results.errors.push({
