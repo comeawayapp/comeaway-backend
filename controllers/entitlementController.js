@@ -247,10 +247,8 @@ exports.editEntitlement = async (req, res) => {
       });
     }
 
-    // Check if entitlement has been redeemed - allow editing redeemed entitlements
-    // but don't allow changing critical fields after redemption
+    // Redeemed: allow metadata + expiry; sync user PRO from new expiry
     if (entitlement.redeemed) {
-      // For redeemed entitlements, only allow updating non-critical fields
       const allowedUpdates = {
         productName,
         customerName,
@@ -261,19 +259,30 @@ exports.editEntitlement = async (req, res) => {
         notes,
       };
 
-      // Remove undefined fields
-      Object.keys(allowedUpdates).forEach(key => {
+      if (expiryDate !== undefined && expiryDate !== null && expiryDate !== "") {
+        const newExpiry = new Date(expiryDate);
+        if (isNaN(newExpiry.getTime())) {
+          return res.status(400).json({ error: "Invalid expiryDate" });
+        }
+        allowedUpdates.expiryDate = newExpiry;
+        allowedUpdates.subscriptionExpiresAt = newExpiry;
+      }
+
+      Object.keys(allowedUpdates).forEach((key) => {
         if (allowedUpdates[key] === undefined) {
           delete allowedUpdates[key];
         }
       });
 
-      // Normalize email fields
       if (allowedUpdates.customerEmail) {
-        allowedUpdates.customerEmail = allowedUpdates.customerEmail.toLowerCase().trim();
+        allowedUpdates.customerEmail = allowedUpdates.customerEmail
+          .toLowerCase()
+          .trim();
       }
       if (allowedUpdates.assignedTo) {
-        allowedUpdates.assignedTo = allowedUpdates.assignedTo.toLowerCase().trim();
+        allowedUpdates.assignedTo = allowedUpdates.assignedTo
+          .toLowerCase()
+          .trim();
       }
 
       const updatedEntitlement = await Entitlement.findByIdAndUpdate(
@@ -282,9 +291,36 @@ exports.editEntitlement = async (req, res) => {
         { new: true }
       );
 
+      let userSynced = null;
+      if (allowedUpdates.expiryDate && updatedEntitlement.redeemedBy) {
+        const redeemedUser = await User.findById(updatedEntitlement.redeemedBy);
+        if (redeemedUser) {
+          const now = new Date();
+          const newExpiry = new Date(allowedUpdates.expiryDate);
+          redeemedUser.proExpiresAt = newExpiry;
+
+          if (newExpiry.getTime() > now.getTime()) {
+            redeemedUser.isPro = true;
+            redeemedUser.activationMode = redeemedUser.activationMode || "code";
+          } else {
+            redeemedUser.isPro = false;
+            redeemedUser.activationMode = null;
+          }
+
+          await redeemedUser.save();
+          userSynced = {
+            userId: redeemedUser._id,
+            isPro: redeemedUser.isPro,
+            proExpiresAt: redeemedUser.proExpiresAt,
+          };
+        }
+      }
+
       return res.status(200).json({
-        message: "Entitlement updated successfully (redeemed entitlement - limited fields updated).",
-        entitlement: updatedEntitlement
+        message:
+          "Entitlement updated successfully (redeemed entitlement).",
+        entitlement: updatedEntitlement,
+        userSynced,
       });
     }
 
