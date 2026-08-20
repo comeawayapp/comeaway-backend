@@ -42,12 +42,12 @@ exports.login = async (req, res) => {
       storedPrefix: gotuser.password?.substring(0, 4),
     });
     
-    const isMatch = await bcrypt.compare(password, gotuser.password);
+    const isMatch = await bcrypt.compareSync(password, gotuser.password);
     console.log("BCRYPT MATCH:", isMatch);
 
-    // if (!isMatch) {
-    //   return res.status(400).json({ message: "Invalid credentials" });
-    // }
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
 
     // Check if email is verified
     if (!gotuser.isEmailVerified) {
