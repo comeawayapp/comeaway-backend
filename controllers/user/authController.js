@@ -34,6 +34,17 @@ exports.login = async (req, res) => {
     }
 
     // Check if the password is correct
+    console.log("PASSWORD DEBUG", {
+      incomingType: typeof password,
+      incomingLength: password?.length,
+      storedType: typeof gotuser.password,
+      storedLength: gotuser.password?.length,
+      storedPrefix: gotuser.password?.substring(0, 4),
+    });
+    
+    const isMatch = await bcrypt.compare(password, gotuser.password);
+    
+    console.log("BCRYPT MATCH:", isMatch);
     const isMatch = await bcrypt.compare(password, gotuser.password);
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid credentials" });
