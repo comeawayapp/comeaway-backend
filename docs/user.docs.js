@@ -16,6 +16,15 @@
  *           type: string
  *         role:
  *           type: string
+ *           nullable: true
+ *           enum: [owner, admin, content_manager, null]
+ *         accountType:
+ *           type: string
+ *           enum: [standard, pro, team_member]
+ *         teamDateAdded:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
  *         status:
  *           type: string
  *     
@@ -36,7 +45,16 @@
  *           description: User's email address
  *         role:
  *           type: string
- *           description: User's role
+ *           nullable: true
+ *           enum: [owner, admin, content_manager, null]
+ *           description: Staff role; null for customers
+ *         accountType:
+ *           type: string
+ *           enum: [standard, pro, team_member]
+ *         teamDateAdded:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
  *         status:
  *           type: string
  *           description: User's status (active/inactive)
@@ -53,7 +71,7 @@
  *           description: How user got Pro access
  *         userType:
  *           type: string
- *           enum: [Standard, Pro]
+ *           enum: [Standard, Pro, Team Member]
  *           description: User type classification
  *         activationMethod:
  *           type: string
@@ -80,7 +98,7 @@
  * @swagger
  * /api/auth/all-user:
  *   get:
- *     summary: Get all users with search and filtering (Admin)
+ *     summary: Get all users with search and filtering (Owner or Admin)
  *     tags: [User Management]
  *     security:
  *       - bearerAuth: []
@@ -95,8 +113,8 @@
  *         name: type
  *         schema:
  *           type: string
- *           enum: [standard, pro]
- *         description: Filter by user type
+ *           enum: [standard, pro, team_member, all]
+ *         description: Filter by account type (team_member = staff)
  *         example: "pro"
  *       - in: query
  *         name: activationMethod

@@ -28,7 +28,16 @@
  *           description: User's phone number
  *         role:
  *           type: string
- *           description: User role
+ *           nullable: true
+ *           enum: [owner, admin, content_manager, null]
+ *           description: Staff role; null for customers
+ *         accountType:
+ *           type: string
+ *           enum: [standard, pro, team_member]
+ *         teamDateAdded:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
  *         isEmailVerified:
  *           type: boolean
  *           description: Email verification status
