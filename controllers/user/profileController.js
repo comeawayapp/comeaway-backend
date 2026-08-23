@@ -43,7 +43,9 @@ exports.getCurrentUserProfile = async (req, res) => {
         lastname: gotuser.lastname,
         email: gotuser.email,
         phoneNumber: gotuser.phoneNumber || "",
-        role: gotuser.role,
+        role: gotuser.role || null,
+        accountType:
+          gotuser.accountType || (gotuser.isPro ? "pro" : "standard"),
         status: gotuser.status,
         isEmailVerified: gotuser.isEmailVerified,
         isPro: gotuser.isPro,
@@ -151,7 +153,9 @@ exports.updateUserProfile = async (req, res) => {
         lastname: gotuser.lastname,
         email: gotuser.email,
         phoneNumber: gotuser.phoneNumber || "",
-        role: gotuser.role,
+        role: gotuser.role || null,
+        accountType:
+          gotuser.accountType || (gotuser.isPro ? "pro" : "standard"),
         status: gotuser.status,
         isEmailVerified: gotuser.isEmailVerified,
         isPro: gotuser.isPro,

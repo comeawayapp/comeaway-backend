@@ -1158,6 +1158,99 @@ Comeaway Team
       text,
     });
   }
+
+  /**
+   * Team invite: set-password link for new or inactive staff
+   */
+  async sendTeamInviteEmail({
+    email,
+    firstName,
+    role,
+    inviteToken,
+  }) {
+    const baseUrl = (process.env.ADMIN_APP_URL || "").replace(/\/$/, "");
+    const setPasswordUrl = `${baseUrl}/set-password?token=${encodeURIComponent(inviteToken)}`;
+    const roleLabel =
+      role === "admin"
+        ? "Admin"
+        : role === "content_manager"
+          ? "Content Manager"
+          : role === "owner"
+            ? "Owner"
+            : role;
+
+    const permissionsHtml =
+      role === "admin"
+        ? `<ul>
+            <li>Access Dashboard</li>
+            <li>Create, edit, and delete content</li>
+            <li>Manage users</li>
+            <li>Invite Content Managers</li>
+            <li>Cannot add or remove Admins</li>
+          </ul>`
+        : `<ul>
+            <li>Create and edit content</li>
+            <li>Cannot delete content</li>
+            <li>No Dashboard or User Management access</li>
+            <li>Cannot manage team members</li>
+          </ul>`;
+
+    const subject = `You're invited to ComeAway as ${roleLabel}`;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head><meta charset="utf-8"><title>Team Invite</title></head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2>Welcome to the ComeAway team</h2>
+          <p>Hello ${firstName || "there"},</p>
+          <p>You have been invited as <strong>${roleLabel}</strong>.</p>
+          <p><strong>What you can access:</strong></p>
+          ${permissionsHtml}
+          <p>Set your password to activate your account:</p>
+          <p><a href="${setPasswordUrl}" style="display:inline-block;padding:12px 20px;background:#5ad2fe;color:#fff;text-decoration:none;border-radius:6px;">Set password</a></p>
+          <p style="font-size:12px;color:#666;">Or open this link:<br>${setPasswordUrl}</p>
+          <p>This link expires in 7 days.</p>
+          <p>ComeAway Team</p>
+        </body>
+      </html>
+    `;
+    const text = `You're invited to ComeAway as ${roleLabel}. Set your password: ${setPasswordUrl}`;
+
+    return this.sendEmail({ to: email, subject, html, text });
+  }
+
+  /**
+   * Existing active customer promoted to staff — keep existing password
+   */
+  async sendTeamAccessGrantedEmail({ email, firstName, role }) {
+    const baseUrl = (process.env.ADMIN_APP_URL || "").replace(/\/$/, "");
+    const loginUrl = `${baseUrl}/login`;
+    const roleLabel =
+      role === "admin"
+        ? "Admin"
+        : role === "content_manager"
+          ? "Content Manager"
+          : role;
+
+    const subject = `ComeAway admin access granted (${roleLabel})`;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head><meta charset="utf-8"><title>Access Granted</title></head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2>Admin access granted</h2>
+          <p>Hello ${firstName || "there"},</p>
+          <p>Your ComeAway account (<strong>${email}</strong>) has been granted <strong>${roleLabel}</strong> access.</p>
+          <p>Sign in with your existing password:</p>
+          <p><a href="${loginUrl}" style="display:inline-block;padding:12px 20px;background:#5ad2fe;color:#fff;text-decoration:none;border-radius:6px;">Open admin</a></p>
+          <p>ComeAway Team</p>
+        </body>
+      </html>
+    `;
+    const text = `Your ComeAway account was granted ${roleLabel} access. Sign in at ${loginUrl} with your existing password.`;
+
+    return this.sendEmail({ to: email, subject, html, text });
+  }
 }
 
 // Export singleton instance

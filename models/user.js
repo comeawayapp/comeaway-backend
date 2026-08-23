@@ -1,54 +1,90 @@
 const mongoose = require("mongoose");
 
+const STAFF_ROLES = ["owner", "admin", "content_manager"];
+
 const UserSchema = new mongoose.Schema(
   {
     firstname: { type: String, required: true },
     lastname: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    phoneNumber: { type: String }, // Added for profile updates
-    role: { type: String },
+    phoneNumber: { type: String },
+    // Staff role; customers use null
+    role: {
+      type: String,
+      enum: {
+        values: ["owner", "admin", "content_manager", null],
+        message: "{VALUE} is not a valid role",
+      },
+      default: null,
+    },
+    accountType: {
+      type: String,
+      enum: ["standard", "pro", "team_member"],
+      default: "standard",
+    },
+    teamDateAdded: { type: Date, default: null },
+    inviteToken: { type: String },
+    inviteTokenExpires: { type: Date },
     status: { type: String, enum: ["active", "inactive"], default: "active" },
     activationMode: { type: String, enum: ["code", "card"], default: null },
-    resetPasswordToken: { type: String }, // Added field for OTP
-    resetPasswordExpires: { type: Date }, // Added field for OTP expiration
-    activeResetToken: { type: String }, // JWT reset token after OTP verification
-    resetTokenExpires: { type: Date }, // JWT reset token expiration
-    emailVerificationOTP: { type: String }, // OTP for email verification
-    emailVerificationExpires: { type: Date }, // OTP expiration time
-    isEmailVerified: { type: Boolean, default: false }, // Email verification status
-    isPro: { type: Boolean, default: false }, // Pro subscription status
-    proExpiresAt: { type: Date }, // Pro subscription expiry
-    profileUpdateCount: { type: Number, default: 0 }, // Track profile updates for rate limiting
-    profileLastUpdated: { type: Date }, // Track last profile update for rate limiting
-    requestDeletionOTP: { type: String }, // OTP for account deletion request
-    requestDeletionExpires: { type: Date }, // Account deletion OTP expiration time
-    deletedAt: { type: Date }, // Soft delete timestamp
-    deletionReason: { type: String }, // Reason for account deletion
-    // Stripe integration fields
-    stripeCustomerId: { type: String, unique: true, sparse: true }, // Stripe customer ID
-    stripeSubscriptionId: { type: String }, // Active Stripe subscription ID
-    subscriptionStatus: { 
-      type: String, 
-      enum: ['active', 'canceled', 'past_due', 'unpaid', 'incomplete', 'trialing'],
-      default: null 
+    resetPasswordToken: { type: String },
+    resetPasswordExpires: { type: Date },
+    activeResetToken: { type: String },
+    resetTokenExpires: { type: Date },
+    emailVerificationOTP: { type: String },
+    emailVerificationExpires: { type: Date },
+    isEmailVerified: { type: Boolean, default: false },
+    isPro: { type: Boolean, default: false },
+    proExpiresAt: { type: Date },
+    profileUpdateCount: { type: Number, default: 0 },
+    profileLastUpdated: { type: Date },
+    requestDeletionOTP: { type: String },
+    requestDeletionExpires: { type: Date },
+    deletedAt: { type: Date },
+    deletionReason: { type: String },
+    stripeCustomerId: { type: String, unique: true, sparse: true },
+    stripeSubscriptionId: { type: String },
+    subscriptionStatus: {
+      type: String,
+      enum: [
+        "active",
+        "canceled",
+        "past_due",
+        "unpaid",
+        "incomplete",
+        "trialing",
+      ],
+      default: null,
     },
-    subscriptionCurrentPeriodEnd: { type: Date }, // When current subscription period ends
-    
-    // Legacy Pro status fields (kept for backward compatibility)
-    isPro: { type: Boolean, default: false }, // Pro subscription status
-    proExpiresAt: { type: Date }, // Pro subscription expiry
-    proUpdatedBy:{
-      type:String
+    subscriptionCurrentPeriodEnd: { type: Date },
+    proUpdatedBy: {
+      type: String,
     },
-    
-    // Social auth fields
-    appleId: { type: String }, // Apple Sign In ID
-    authProvider: { type: String, enum: ["email", "google", "facebook", "apple"], default: "email" }, // Authentication provider
+    appleId: { type: String },
+    authProvider: {
+      type: String,
+      enum: ["email", "google", "facebook", "apple"],
+      default: "email",
+    },
   },
   {
-    timestamps: true, // This adds createdAt and updatedAt automatically
+    timestamps: true,
   }
 );
+
+UserSchema.statics.STAFF_ROLES = STAFF_ROLES;
+
+UserSchema.methods.isStaff = function () {
+  return STAFF_ROLES.includes(this.role);
+};
+
+// Coerce legacy customer role strings so saves don't fail enum validation
+UserSchema.pre("validate", function (next) {
+  if (this.role === "user" || this.role === "" || this.role === undefined) {
+    this.role = null;
+  }
+  next();
+});
 
 module.exports = mongoose.model("User", UserSchema);

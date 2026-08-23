@@ -37,17 +37,35 @@ exports.getAllUsers = async (req, res) => {
 
     // Add user type filter (ignore all / All User Types / empty)
     if (type && !["all", "all user types"].includes(String(type).toLowerCase())) {
-      if (!["standard", "pro"].includes(String(type).toLowerCase())) {
+      const typeLower = String(type).toLowerCase();
+      if (!["standard", "pro", "team_member"].includes(typeLower)) {
         return res.status(400).json({
-          message: "Invalid user type. Use 'standard', 'pro', or 'all'",
-          allowedValues: ["standard", "pro", "all"],
+          message:
+            "Invalid user type. Use 'standard', 'pro', 'team_member', or 'all'",
+          allowedValues: ["standard", "pro", "team_member", "all"],
         });
       }
 
-      if (String(type).toLowerCase() === "pro") {
-        filter.isPro = true;
+      if (typeLower === "team_member") {
+        filter.$and.push({
+          $or: [
+            { accountType: "team_member" },
+            { role: { $in: ["owner", "admin", "content_manager"] } },
+          ],
+        });
+      } else if (typeLower === "pro") {
+        filter.$and.push({
+          isPro: true,
+          accountType: { $ne: "team_member" },
+          role: { $nin: ["owner", "admin", "content_manager"] },
+        });
       } else {
-        filter.isPro = false;
+        // standard customers
+        filter.$and.push({
+          isPro: false,
+          accountType: { $ne: "team_member" },
+          role: { $nin: ["owner", "admin", "content_manager"] },
+        });
       }
     }
 
@@ -77,11 +95,24 @@ exports.getAllUsers = async (req, res) => {
 
     // Add user type and activation method to each user
     const usersWithType = users.map((userDoc) => {
-      const userType = userDoc.isPro ? "Pro" : "Standard";
+      const obj = userDoc.toObject();
+      const isTeam =
+        obj.accountType === "team_member" ||
+        ["owner", "admin", "content_manager"].includes(obj.role);
+      const userType = isTeam
+        ? "Team Member"
+        : obj.isPro
+          ? "Pro"
+          : "Standard";
       const activationMethodValue = userDoc.activationMode || "None";
 
       return {
-        ...userDoc.toObject(),
+        ...obj,
+        role: obj.role || null,
+        accountType:
+          obj.accountType ||
+          (isTeam ? "team_member" : obj.isPro ? "pro" : "standard"),
+        teamDateAdded: obj.teamDateAdded || null,
         userType: userType,
         activationMethod: activationMethodValue,
       };
@@ -270,6 +301,11 @@ exports.updatePlanStatus = async (req, res) => {
     const upgradingToPro = planStatus === "pro";
 
     gotuser.isPro = upgradingToPro;
+
+    // Keep team_member accountType; sync customer accountType with plan
+    if (gotuser.accountType !== "team_member" && !["owner", "admin", "content_manager"].includes(gotuser.role)) {
+      gotuser.accountType = upgradingToPro ? "pro" : "standard";
+    }
 
     if (upgradingToPro) {
       // Ensure expiry is set so scheduled checks don't immediately downgrade

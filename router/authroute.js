@@ -3,35 +3,46 @@ const router = express.Router();
 const userController = require("../controllers/userController");
 const authMiddleware = require("../middleware/auth");
 const checkProStatus = require("../middleware/checkProStatus");
+const requireRole = require("../middleware/requireRole");
+
+const staffDashboard = requireRole("owner", "admin");
 
 // Login route
 router.post("/login", userController.login);
 router.post("/signup", userController.signup);
 router.post("/forgetPassword", userController.forgotPassword);
 router.post("/resetPassword", userController.resetPassword);
-router.get("/all-user", authMiddleware, userController.getAllUsers);
-router.get("/soft-deleted-users", authMiddleware, userController.getSoftDeletedUsers);
-router.post("/verifyOtp", userController.verifyOtp); // Password reset OTP verification
-router.post("/verifyEmailOTP", userController.verifyEmailOTP); // Email verification OTP
+router.get("/all-user", authMiddleware, staffDashboard, userController.getAllUsers);
+router.get(
+  "/soft-deleted-users",
+  authMiddleware,
+  staffDashboard,
+  userController.getSoftDeletedUsers
+);
+router.post("/verifyOtp", userController.verifyOtp);
+router.post("/verifyEmailOTP", userController.verifyEmailOTP);
 router.post(
   "/resendEmailVerificationOTP",
   userController.resendEmailVerificationOTP
-); // Resend email verification OTP
+);
 router.put(
   "/updateStatus/:id",
   authMiddleware,
+  staffDashboard,
   checkProStatus,
   userController.updateUserStatus
 );
 router.get(
   "/getSingleUser/:id",
   authMiddleware,
+  staffDashboard,
   checkProStatus,
   userController.getUserById
 );
 router.put(
   "/admin/update/:id",
   authMiddleware,
+  staffDashboard,
   checkProStatus,
   userController.updateAdminDetails
 );
@@ -39,45 +50,50 @@ router.post("/google-signin", userController.googleSignIn);
 router.post("/facebook-signin", userController.facebookSignIn);
 router.post("/apple-signin", userController.appleSignIn);
 
-// Profile management routes
 router.get(
   "/user/profile",
   authMiddleware,
   userController.getCurrentUserProfile
 );
-router.get("/users/me", authMiddleware, userController.getCurrentUserProfile); // Alternative endpoint
+router.get("/users/me", authMiddleware, userController.getCurrentUserProfile);
 router.patch("/user/profile", authMiddleware, userController.updateUserProfile);
-router.put("/users/me", authMiddleware, userController.updateUserProfile); // Alternative endpoint
+router.put("/users/me", authMiddleware, userController.updateUserProfile);
 
-// Delete user by ID (admin only)
 router.delete(
   "/admin/delete/:id",
   authMiddleware,
+  staffDashboard,
   userController.deleteUserById
 );
 
-// Admin: Deactivate/Activate user endpoints
 router.put(
   "/admin/deactivate/:id",
   authMiddleware,
+  staffDashboard,
   userController.deactivateUser
 );
-router.put("/admin/activate/:id", authMiddleware, userController.activateUser);
+router.put(
+  "/admin/activate/:id",
+  authMiddleware,
+  staffDashboard,
+  userController.activateUser
+);
 
-// Admin: Restore soft-deleted user
-router.put("/admin/restore/:id", authMiddleware, userController.restoreUser);
+router.put(
+  "/admin/restore/:id",
+  authMiddleware,
+  staffDashboard,
+  userController.restoreUser
+);
 
-// Admin: Update user plan status (pro/standard)
 router.put(
   "/admin/update-plan-status/:id",
   authMiddleware,
+  staffDashboard,
   userController.updatePlanStatus
 );
 
-// Account deletion request
 router.post("/request-deletion", userController.requestDeletion);
-
-// Confirm account deletion with OTP
 router.post("/confirm-deletion", userController.confirmAccountDeletion);
 
 module.exports = router;

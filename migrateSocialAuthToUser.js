@@ -22,7 +22,7 @@ const migrateSocialAuthUserToUserCollection = async () => {
         lastname: socialUser.lastname,
         email: socialUser.email,
         //password: , // No password for social users
-        role: socialUser.role || "user",
+        role: null, // customers: null; staff roles set separately
         status: socialUser.status || "active",
         resetPasswordToken: undefined, // Optional: Clear if not needed
         resetPasswordExpires: undefined, // Optional: Clear if not needed

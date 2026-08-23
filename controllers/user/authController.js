@@ -87,7 +87,9 @@ exports.login = async (req, res) => {
         lastname: gotuser.lastname,
         email: gotuser.email,
         phoneNumber: gotuser.phoneNumber || "",
-        role: gotuser.role,
+        role: gotuser.role || null,
+        accountType:
+          gotuser.accountType || (gotuser.isPro ? "pro" : "standard"),
         isEmailVerified: gotuser.isEmailVerified,
         isPro: gotuser.isPro,
         proExpiresAt: gotuser.proExpiresAt,
@@ -127,9 +129,10 @@ exports.googleSignIn = async (req, res) => {
         lastname: familyName,
         email: normalizedEmail,
         password: "12345678", // Leave password empty for Google sign-ins
-        role: "user", // Default role
-        status: "active", // Default status
-        photo, // Save the photo URL
+        role: null,
+        accountType: "standard",
+        status: "active",
+        photo,
       });
 
       existingUser = await newUser.save();
@@ -162,7 +165,9 @@ exports.googleSignIn = async (req, res) => {
         lastname: existingUser.lastname,
         email: existingUser.email,
         phoneNumber: existingUser.phoneNumber || "",
-        photo: existingUser.photo, // Include photo if available
+        photo: existingUser.photo,
+        role: existingUser.role || null,
+        accountType: existingUser.accountType || (existingUser.isPro ? "pro" : "standard"),
         isPro: existingUser.isPro,
         proExpiresAt: existingUser.proExpiresAt,
       },
@@ -201,9 +206,10 @@ exports.facebookSignIn = async (req, res) => {
         lastname: lastName,
         email: normalizedEmail,
         password: "12345678",
-        role: "user", // Default role
-        status: "active", // Default status
-        photo, // Save the photo URL
+        role: null,
+        accountType: "standard",
+        status: "active",
+        photo,
       });
 
       existingUser = await newUser.save();
@@ -236,7 +242,9 @@ exports.facebookSignIn = async (req, res) => {
         lastname: existingUser.lastname,
         email: existingUser.email,
         phoneNumber: existingUser.phoneNumber || "",
-        photo: existingUser.photo, // Include photo if available
+        photo: existingUser.photo,
+        role: existingUser.role || null,
+        accountType: existingUser.accountType || (existingUser.isPro ? "pro" : "standard"),
         isPro: existingUser.isPro,
         proExpiresAt: existingUser.proExpiresAt,
       },
@@ -292,12 +300,13 @@ exports.appleSignIn = async (req, res) => {
         firstname: appleUser?.name?.firstName || "Apple",
         lastname: appleUser?.name?.lastName || "User",
         email: normalizedEmail,
-        password: appleId, // Default password for Apple sign-ins
-        role: "user", // Default role
-        status: "active", // Default status
-        isEmailVerified: email_verified || true, // Apple emails are pre-verified
-        appleId: appleId, // Store Apple ID for future reference
-        authProvider: "apple" // Track authentication provider
+        password: appleId,
+        role: null,
+        accountType: "standard",
+        status: "active",
+        isEmailVerified: email_verified || true,
+        appleId: appleId,
+        authProvider: "apple",
       });
 
       existingUser = await newUser.save();
@@ -349,7 +358,10 @@ exports.appleSignIn = async (req, res) => {
         lastname: existingUser.lastname,
         email: existingUser.email,
         phoneNumber: existingUser.phoneNumber || "",
-        role: existingUser.role,
+        role: existingUser.role || null,
+        accountType:
+          existingUser.accountType ||
+          (existingUser.isPro ? "pro" : "standard"),
         isEmailVerified: existingUser.isEmailVerified,
         isPro: existingUser.isPro,
         proExpiresAt: existingUser.proExpiresAt,
@@ -416,6 +428,8 @@ exports.signup = async (req, res) => {
         lastname,
         email: normalizedEmail,
         password: hashedPassword,
+        role: null,
+        accountType: "standard",
         emailVerificationOTP: otp.toString(),
         emailVerificationExpires: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
         isEmailVerified: false,

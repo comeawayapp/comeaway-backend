@@ -3,9 +3,12 @@ const router = express.Router();
 const emailService = require("../services/emailService");
 const emailLogger = require("../utils/emailLogger");
 const authMiddleware = require("../middleware/auth");
+const requireRole = require("../middleware/requireRole");
+
+const staffDashboard = requireRole("owner", "admin");
 
 // Get email statistics (admin only)
-router.get("/stats", authMiddleware, async (req, res) => {
+router.get("/stats", authMiddleware, staffDashboard, async (req, res) => {
   try {
     // You might want to add admin role check here
     const hours = parseInt(req.query.hours) || 24;
@@ -27,7 +30,7 @@ router.get("/stats", authMiddleware, async (req, res) => {
 });
 
 // Send test email (admin only)
-router.post("/test", authMiddleware, async (req, res) => {
+router.post("/test", authMiddleware, staffDashboard, async (req, res) => {
   try {
     const { to, subject, message } = req.body;
 
@@ -71,7 +74,7 @@ router.post("/test", authMiddleware, async (req, res) => {
 });
 
 // Clean old email logs (admin only)
-router.post("/cleanup", authMiddleware, async (req, res) => {
+router.post("/cleanup", authMiddleware, staffDashboard, async (req, res) => {
   try {
     const days = parseInt(req.body.days) || 30;
     await emailLogger.cleanOldLogs(days);
@@ -91,7 +94,7 @@ router.post("/cleanup", authMiddleware, async (req, res) => {
 });
 
 // Send admin notification
-router.post("/admin-notification", authMiddleware, async (req, res) => {
+router.post("/admin-notification", authMiddleware, staffDashboard, async (req, res) => {
   try {
     const { subject, message, data } = req.body;
 

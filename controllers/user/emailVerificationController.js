@@ -83,7 +83,9 @@ exports.verifyEmailOTP = async (req, res) => {
         lastname: gotuser.lastname,
         email: gotuser.email,
         phoneNumber: gotuser.phoneNumber || "",
-        role: gotuser.role,
+        role: gotuser.role || null,
+        accountType:
+          gotuser.accountType || (gotuser.isPro ? "pro" : "standard"),
         isEmailVerified: gotuser.isEmailVerified,
         isPro: gotuser.isPro,
         proExpiresAt: gotuser.proExpiresAt,

@@ -96,6 +96,7 @@ app.get("/", (req, res) => {
 
 // API routes
 app.use("/api/auth", require("./router/authroute"));
+app.use("/api/team", require("./router/teamRoutes"));
 app.use("/api/categories", require("./router/catagoryRoutes"));
 app.use("/api/sounds", require("./router/soundRoutes"));
 app.use("/api/subscription", require("./router/subscriptionRoutes"));
