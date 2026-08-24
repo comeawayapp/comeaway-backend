@@ -32,10 +32,10 @@ router.put(
   checkProStatus,
   userController.updateUserStatus
 );
+// Mobile + app: any authenticated user (not staff-only)
 router.get(
   "/getSingleUser/:id",
   authMiddleware,
-  staffDashboard,
   checkProStatus,
   userController.getUserById
 );
