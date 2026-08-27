@@ -175,11 +175,22 @@ async createSubscription(customerId, priceId, options = {}) {
         stripeSubscriptionId: stripeSubscription.id 
       });
 
+      const price = stripeSubscription.items?.data?.[0]?.price;
+      const interval =
+        price?.recurring?.interval ||
+        stripeSubscription.plan?.interval ||
+        null;
+      const plan =
+        interval === 'month' ? 'monthly' :
+        interval === 'year' ? 'annual' :
+        interval === 'day' ? 'daily' :
+        null;
+
       const subscriptionData = {
         userId: userId,
         stripeSubscriptionId: stripeSubscription.id,
         stripeCustomerId: stripeSubscription.customer,
-        stripePriceId: stripeSubscription.items.data[0].price.id,
+        stripePriceId: price?.id || stripeSubscription.items.data[0].price.id,
         status: stripeSubscription.status,
         currentPeriodStart: stripeSubscription.current_period_start ? 
           new Date(stripeSubscription.current_period_start * 1000) : null,
@@ -192,7 +203,8 @@ async createSubscription(customerId, priceId, options = {}) {
           new Date(stripeSubscription.trial_start * 1000) : null,
         trialEnd: stripeSubscription.trial_end ? 
           new Date(stripeSubscription.trial_end * 1000) : null,
-        stripeMetadata: stripeSubscription.metadata || {}
+        stripeMetadata: stripeSubscription.metadata || {},
+        ...(plan ? { plan } : {})
       };
 
       if (subscription) {

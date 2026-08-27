@@ -11,6 +11,12 @@ function escapeRegex(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/** Amazon order pending — skip auto-redeem until /match sets real email */
+function isAmazonPendingEmail(email) {
+  if (!email || typeof email !== "string") return false;
+  return /^amazon_pending_/i.test(email.trim());
+}
+
 /**
  * Find any user by email, case-insensitive (includes soft-deleted).
  */
@@ -81,6 +87,10 @@ async function redeemEntitlementForUser(entitlement, user, { sendEmail = true } 
 async function autoRedeemEntitlementIfUserExists(entitlement) {
   try {
     if (!entitlement || entitlement.redeemed) {
+      return { userUpgraded: false, user: null, redeemResult: null };
+    }
+
+    if (isAmazonPendingEmail(entitlement.assignedTo)) {
       return { userUpgraded: false, user: null, redeemResult: null };
     }
 
@@ -168,6 +178,7 @@ async function checkAndRedeemEntitlement(email, userId) {
 
 module.exports = {
   normalizeEmail,
+  isAmazonPendingEmail,
   findUserByEmailCI,
   findActiveUserByEmail,
   redeemEntitlementForUser,

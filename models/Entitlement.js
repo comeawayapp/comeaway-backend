@@ -39,6 +39,8 @@ const EntitlementSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+EntitlementSchema.index({ orderNumber: 1 });
+
 // Auto-set expiryDate to 5 years from creation if not provided
 EntitlementSchema.pre('save', function(next) {
   if (!this.expiryDate) {

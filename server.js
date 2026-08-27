@@ -34,7 +34,7 @@ app.use(cors({
   origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token', 'x-api-key']
 }));
 
 // Import conditional body parsing middleware
@@ -110,7 +110,9 @@ app.use("/api/stripe", require("./router/stripeRoutes"));
 app.use("/api/revenuecat", require("./router/revenueCatWebhook"));
 app.use("/api/activation-codes", require("./router/activationCodeRoutes"));
 app.use("/api/entitlements", require("./router/entitlementRoutes"));
+app.use("/api/v1/entitlements", require("./router/entitlementAutomationRoutes"));
 app.use("/api/emails", require("./router/emailRoutes"));
+app.use("/api/admin", require("./router/adminDashboardRoutes"));
 
 // Global error handler
 app.use((err, req, res, next) => {
