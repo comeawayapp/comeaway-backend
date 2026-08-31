@@ -32,6 +32,12 @@ const ACTIVE_USER_FILTER = {
   ],
 };
 
+function yearBounds(year) {
+  const startOfYear = new Date(Date.UTC(year, 0, 1));
+  const startOfNextYear = new Date(Date.UTC(year + 1, 0, 1));
+  return { startOfYear, startOfNextYear };
+}
+
 function intervalToPlan(interval) {
   if (interval === "month") return "monthly";
   if (interval === "year") return "annual";
@@ -80,10 +86,9 @@ async function getSubscriptionPlanTotals() {
   let totalAnnualSubscriptions = 0;
 
   for (const sub of activeSubs) {
-    const plan =
-      ["monthly", "annual", "daily"].includes(sub.plan)
-        ? sub.plan
-        : pricePlanMap[sub.stripePriceId];
+    const plan = ["monthly", "annual", "daily"].includes(sub.plan)
+      ? sub.plan
+      : pricePlanMap[sub.stripePriceId];
 
     if (plan === "monthly") totalMonthlySubscriptions += 1;
     else if (plan === "annual") totalAnnualSubscriptions += 1;
@@ -93,8 +98,7 @@ async function getSubscriptionPlanTotals() {
 }
 
 async function getSubscriptionsSoldPerMonth(year) {
-  const startOfYear = new Date(year, 0, 1);
-  const startOfNextYear = new Date(year + 1, 0, 1);
+  const { startOfYear, startOfNextYear } = yearBounds(year);
 
   const monthlyCounts = await Subscription.aggregate([
     {
@@ -121,38 +125,89 @@ async function getSubscriptionsSoldPerMonth(year) {
   }));
 }
 
+/**
+ * Revenue for a calendar year.
+ * Stripe amounts are stored in cents. Uses paidAt when set, else createdAt.
+ */
+async function getRevenueForYear(year) {
+  const { startOfYear, startOfNextYear } = yearBounds(year);
+
+  const result = await Payment.aggregate([
+    { $match: { status: "succeeded" } },
+    {
+      $addFields: {
+        effectivePaidAt: { $ifNull: ["$paidAt", "$createdAt"] },
+      },
+    },
+    {
+      $match: {
+        effectivePaidAt: { $gte: startOfYear, $lt: startOfNextYear },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalAmount: { $sum: "$amount" },
+        refundedAmount: { $sum: { $ifNull: ["$refundedAmount", 0] } },
+        paymentCount: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const row = result[0] || {
+    totalAmount: 0,
+    refundedAmount: 0,
+    paymentCount: 0,
+  };
+
+  const amountCents = Math.max(
+    0,
+    Math.round((row.totalAmount || 0) - (row.refundedAmount || 0))
+  );
+
+  return {
+    amountCents,
+    amountDollars: amountCents / 100,
+    currency: "usd",
+    paymentCount: row.paymentCount || 0,
+  };
+}
+
 exports.getDashboard = async (req, res) => {
   try {
     const now = new Date();
     const requestedYear = parseInt(req.query.year, 10);
     const year =
-      Number.isInteger(requestedYear) && requestedYear >= 2000 && requestedYear <= 2100
+      Number.isInteger(requestedYear) &&
+      requestedYear >= 2000 &&
+      requestedYear <= 2100
         ? requestedYear
         : now.getFullYear();
 
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const { startOfYear, startOfNextYear } = yearBounds(year);
+
+    const usersInYearFilter = {
+      $and: [
+        ...ACTIVE_USER_FILTER.$and,
+        { createdAt: { $gte: startOfYear, $lt: startOfNextYear } },
+      ],
+    };
 
     const [
       totalUsers,
       newSubscriptions,
-      paymentStats,
+      revenue,
       planTotals,
       subscriptionsSoldPerMonth,
     ] = await Promise.all([
-      User.countDocuments(ACTIVE_USER_FILTER),
+      User.countDocuments(usersInYearFilter),
       Subscription.countDocuments({
-        createdAt: { $gte: startOfMonth, $lt: startOfNextMonth },
+        createdAt: { $gte: startOfYear, $lt: startOfNextYear },
       }),
-      Payment.getPaymentStats({ status: "succeeded" }),
+      getRevenueForYear(year),
       getSubscriptionPlanTotals(),
       getSubscriptionsSoldPerMonth(year),
     ]);
-
-    const amountCents = Math.max(
-      0,
-      (paymentStats.totalAmount || 0) - (paymentStats.refundedAmount || 0)
-    );
 
     return res.status(200).json({
       success: true,
@@ -160,16 +215,20 @@ exports.getDashboard = async (req, res) => {
         totalUsers,
         newSubscriptions,
         revenue: {
-          amountCents,
-          amountDollars: amountCents / 100,
-          currency: "usd",
+          amountCents: revenue.amountCents,
+          amountDollars: revenue.amountDollars,
+          currency: revenue.currency,
         },
         totalMonthlySubscriptions: planTotals.totalMonthlySubscriptions,
         totalAnnualSubscriptions: planTotals.totalAnnualSubscriptions,
         subscriptionsSoldPerMonth,
         meta: {
           year,
-          newSubscriptionsPeriod: "current_month",
+          totalUsersPeriod: "selected_year",
+          newSubscriptionsPeriod: "selected_year",
+          revenuePeriod: "selected_year",
+          planTotalsPeriod: "current_active",
+          paymentCount: revenue.paymentCount,
         },
       },
     });

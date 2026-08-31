@@ -12,8 +12,9 @@
  *     summary: Get admin dashboard metrics
  *     description: >
  *       Returns KPI cards and chart data for the admin dashboard.
- *       Pie chart uses totalMonthlySubscriptions and totalAnnualSubscriptions.
- *       Bar chart uses subscriptionsSoldPerMonth (12 months for the selected year).
+ *       `year` filters totalUsers, newSubscriptions, revenue, and subscriptionsSoldPerMonth.
+ *       Pie chart (active monthly vs annual subscriptions) is always current snapshot.
+ *       Payment amounts are treated as Stripe cents (299 = $2.99).
  *     tags: [Admin Dashboard]
  *     security:
  *       - bearerAuth: []
@@ -23,7 +24,7 @@
  *         schema:
  *           type: integer
  *           example: 2026
- *         description: Calendar year for the subscriptions-sold-per-month bar chart (defaults to current year)
+ *         description: Calendar year for year-scoped KPIs and the bar chart (defaults to current year)
  *     responses:
  *       200:
  *         description: Dashboard metrics retrieved successfully
@@ -40,13 +41,15 @@
  *                   properties:
  *                     totalUsers:
  *                       type: integer
+ *                       description: Active users created in the selected year
  *                       example: 120
  *                     newSubscriptions:
  *                       type: integer
- *                       description: Subscriptions created in the current calendar month
+ *                       description: Subscriptions created in the selected year
  *                       example: 8
  *                     revenue:
  *                       type: object
+ *                       description: Net succeeded payments in the selected year (Stripe cents)
  *                       properties:
  *                         amountCents:
  *                           type: number
@@ -59,11 +62,11 @@
  *                           example: usd
  *                     totalMonthlySubscriptions:
  *                       type: integer
- *                       description: Active/trialing monthly subscriptions (pie chart)
+ *                       description: Active/trialing monthly subscriptions right now (pie chart)
  *                       example: 34
  *                     totalAnnualSubscriptions:
  *                       type: integer
- *                       description: Active/trialing annual subscriptions (pie chart)
+ *                       description: Active/trialing annual subscriptions right now (pie chart)
  *                       example: 12
  *                     subscriptionsSoldPerMonth:
  *                       type: array
@@ -87,9 +90,21 @@
  *                         year:
  *                           type: integer
  *                           example: 2026
+ *                         totalUsersPeriod:
+ *                           type: string
+ *                           example: selected_year
  *                         newSubscriptionsPeriod:
  *                           type: string
- *                           example: current_month
+ *                           example: selected_year
+ *                         revenuePeriod:
+ *                           type: string
+ *                           example: selected_year
+ *                         planTotalsPeriod:
+ *                           type: string
+ *                           example: current_active
+ *                         paymentCount:
+ *                           type: integer
+ *                           description: Number of succeeded payments included in revenue for the year
  *       401:
  *         description: Unauthorized
  *       403:
