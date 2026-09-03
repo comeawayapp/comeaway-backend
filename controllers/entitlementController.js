@@ -180,7 +180,10 @@ exports.redeemEntitlement = async (req, res) => {
       return res.status(400).json({ error: "Entitlement expired." });
 
     // Check if the entitlement is assigned to this user
-    if (entitlement.assignedTo.toLowerCase() !== loggedInUser.email.toLowerCase()) {
+    if (
+      !entitlement.assignedTo ||
+      entitlement.assignedTo.toLowerCase() !== loggedInUser.email.toLowerCase()
+    ) {
       return res.status(403).json({ 
         error: "This entitlement is not assigned to your email address." 
       });

@@ -16,8 +16,18 @@ function escapeRegex(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function optionalEmail(value) {
+  if (value == null || value === "") return null;
+  const normalized = normalizeEmail(value);
+  return normalized || null;
+}
+
 /**
  * POST /api/v1/entitlements/sync
+ *
+ * Shopify: customer_email required; assigned_to defaults to buyer email.
+ * Amazon: customer_email / assigned_to may be omitted → stored as null.
+ * Idempotent by (platform, orderNumber, syncUnitIndex 1..quantity).
  */
 exports.syncEntitlements = async (req, res) => {
   try {
@@ -33,10 +43,10 @@ exports.syncEntitlements = async (req, res) => {
       notes,
     } = req.body;
 
-    if (!order_number || !platform || !product_name || !customer_email) {
+    if (!order_number || !platform || !product_name) {
       return res.status(400).json({
         error:
-          "Missing required fields: order_number, platform, product_name, customer_email",
+          "Missing required fields: order_number, platform, product_name",
       });
     }
 
@@ -55,59 +65,83 @@ exports.syncEntitlements = async (req, res) => {
     }
 
     const orderNumber = String(order_number).trim();
-    const customerEmail = normalizeEmail(customer_email);
-    const assignedTo = normalizeEmail(assigned_to || customer_email);
-    const finalExpiry = defaultExpiryDate(expiry_date);
+    const isAmazon = normalizedPlatform === "amazon";
 
-    const existing = await Entitlement.find({ orderNumber }).sort({
-      createdAt: 1,
-    });
-    const existingCount = existing.length;
+    let customerEmail = optionalEmail(customer_email);
+    let assignedTo = optionalEmail(assigned_to);
 
-    if (existingCount >= qty) {
-      return res.status(200).json({
-        message: "Order already synced (idempotent)",
-        order_number: orderNumber,
-        created: 0,
-        total: existingCount,
-        entitlements: existing,
-      });
+    if (!isAmazon) {
+      if (!customerEmail) {
+        return res.status(400).json({
+          error:
+            "customer_email is required for non-Amazon platforms (e.g. shopify)",
+        });
+      }
+      assignedTo = assignedTo || customerEmail;
+    } else {
+      // Amazon: leave null unless a real email was explicitly provided
+      if (isAmazonPendingEmail(customerEmail)) customerEmail = null;
+      if (isAmazonPendingEmail(assignedTo)) assignedTo = null;
     }
 
-    const toCreate = qty - existingCount;
-    const created = [];
+    const finalExpiry = defaultExpiryDate(expiry_date);
+    let createdCount = 0;
 
-    for (let i = 0; i < toCreate; i++) {
-      const entitlementId = await generateUniqueEntitlementId();
-      const row = await Entitlement.create({
-        entitlementId,
-        productName: product_name,
-        orderNumber,
-        customerName: customer_name || undefined,
-        customerEmail,
-        assignedTo,
+    for (let unitIndex = 1; unitIndex <= qty; unitIndex++) {
+      const existingUnit = await Entitlement.findOne({
         platform: normalizedPlatform,
-        expiryDate: finalExpiry,
-        notes: notes || undefined,
-        redeemed: false,
+        orderNumber,
+        syncUnitIndex: unitIndex,
       });
 
-      if (!isAmazonPendingEmail(assignedTo)) {
-        await autoRedeemEntitlementIfUserExists(row);
+      if (existingUnit) {
+        continue;
       }
 
-      const refreshed = await Entitlement.findById(row._id);
-      created.push(refreshed);
+      try {
+        const entitlementId = await generateUniqueEntitlementId();
+        const row = await Entitlement.create({
+          entitlementId,
+          productName: product_name,
+          orderNumber,
+          customerName: customer_name || undefined,
+          customerEmail,
+          assignedTo,
+          platform: normalizedPlatform,
+          syncUnitIndex: unitIndex,
+          expiryDate: finalExpiry,
+          notes: notes || undefined,
+          redeemed: false,
+        });
+
+        // Auto-redeem only when a real email is present (Shopify / rare Amazon with email)
+        if (!isAmazonPendingEmail(assignedTo)) {
+          await autoRedeemEntitlementIfUserExists(row);
+        }
+
+        createdCount += 1;
+      } catch (err) {
+        // Concurrent retry hit unique (platform, orderNumber, syncUnitIndex)
+        if (err && err.code === 11000) {
+          continue;
+        }
+        throw err;
+      }
     }
 
-    const allForOrder = await Entitlement.find({ orderNumber }).sort({
-      createdAt: 1,
-    });
+    const allForOrder = await Entitlement.find({
+      platform: normalizedPlatform,
+      orderNumber,
+    }).sort({ syncUnitIndex: 1, createdAt: 1 });
 
-    return res.status(201).json({
-      message: `Created ${created.length} entitlement(s)`,
+    const status = createdCount > 0 ? 201 : 200;
+    return res.status(status).json({
+      message:
+        createdCount > 0
+          ? `Created ${createdCount} entitlement(s)`
+          : "Order already synced (idempotent)",
       order_number: orderNumber,
-      created: created.length,
+      created: createdCount,
       total: allForOrder.length,
       entitlements: allForOrder,
     });
@@ -119,6 +153,9 @@ exports.syncEntitlements = async (req, res) => {
 
 /**
  * POST /api/v1/entitlements/expire
+ * Sets expiry_date on all rows for order_number.
+ * Omitting expiry_date uses the server's current UTC instant.
+ * Redeemed users are synced internally; integration does not send PRO fields.
  */
 exports.expireEntitlements = async (req, res) => {
   try {
@@ -165,7 +202,7 @@ exports.expireEntitlements = async (req, res) => {
       message: "Entitlements expired for order",
       order_number: orderNumber,
       updated_count: updated.length,
-      expiry_date: newExpiry,
+      expiry_date: newExpiry.toISOString(),
       entitlements: updated,
       usersSynced,
     });
@@ -177,7 +214,10 @@ exports.expireEntitlements = async (req, res) => {
 
 /**
  * POST /api/v1/entitlements/match
- * Amazon Klaviyo: real email + last 7 digits of order ID
+ * Amazon Klaviyo: real email + last 7 digits of order ID.
+ * Updates ALL pending unredeemed rows for the one matching order.
+ * Does NOT redeem or set PRO — signup/login handles that.
+ * 409 only when the suffix matches multiple distinct order numbers.
  */
 exports.matchEntitlements = async (req, res) => {
   try {
@@ -201,11 +241,17 @@ exports.matchEntitlements = async (req, res) => {
       return res.status(400).json({ error: "Invalid customer_email" });
     }
 
+    // Pending = null/empty assignedTo OR legacy AMAZON_PENDING_... placeholder
     const matches = await Entitlement.find({
       platform: "amazon",
       redeemed: false,
       orderNumber: { $regex: `${escapeRegex(suffix)}$` },
-      assignedTo: { $regex: /^amazon_pending_/i },
+      $or: [
+        { assignedTo: null },
+        { assignedTo: { $exists: false } },
+        { assignedTo: "" },
+        { assignedTo: { $regex: /^amazon_pending_/i } },
+      ],
     });
 
     if (matches.length === 0) {
@@ -215,35 +261,46 @@ exports.matchEntitlements = async (req, res) => {
       });
     }
 
-    if (matches.length > 1) {
+    const distinctOrders = [
+      ...new Set(matches.map((m) => m.orderNumber)),
+    ];
+
+    // Genuine ambiguity: same 7 digits on different full Amazon order IDs
+    if (distinctOrders.length > 1) {
       return res.status(409).json({
-        error: "Multiple entitlements match this order suffix — manual review required",
+        error:
+          "Ambiguous order suffix — matches multiple distinct Amazon orders",
         order_suffix: suffix,
+        order_numbers: distinctOrders,
         match_count: matches.length,
-        entitlement_ids: matches.map((e) => e.entitlementId),
       });
     }
 
-    const entitlement = matches[0];
-    entitlement.customerEmail = realEmail;
-    entitlement.assignedTo = realEmail;
-    if (!entitlement.customerName) {
-      entitlement.customerName = realEmail.split("@")[0];
-    }
-    await entitlement.save();
+    const orderNumber = distinctOrders[0];
+    const orderRows = matches.filter((m) => m.orderNumber === orderNumber);
 
-    const redeemResult = await autoRedeemEntitlementIfUserExists(entitlement);
-    const updated = await Entitlement.findById(entitlement._id);
+    for (const entitlement of orderRows) {
+      entitlement.customerEmail = realEmail;
+      entitlement.assignedTo = realEmail;
+      if (!entitlement.customerName) {
+        entitlement.customerName = realEmail.split("@")[0];
+      }
+      await entitlement.save();
+      // Intentionally do NOT call autoRedeem — account signup/login redeems
+    }
+
+    const updated = await Entitlement.find({
+      platform: "amazon",
+      orderNumber,
+    }).sort({ syncUnitIndex: 1, createdAt: 1 });
 
     return res.status(200).json({
-      message: "Entitlement matched and updated",
+      message: "Entitlements matched and updated",
       order_suffix: suffix,
-      order_number: updated.orderNumber,
+      order_number: orderNumber,
       customer_email: realEmail,
-      entitlement: updated,
-      userUpgraded: !!redeemResult.userUpgraded,
-      userAlreadyPro: !!redeemResult.userAlreadyPro,
-      userId: redeemResult.user?._id || null,
+      updated_count: orderRows.length,
+      entitlements: updated,
     });
   } catch (err) {
     console.error("matchEntitlements error:", err);
