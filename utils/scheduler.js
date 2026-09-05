@@ -1,6 +1,7 @@
 const cron = require("node-cron");
 const {
   checkExpiredSubscriptions,
+  sendTwoDayExpiryReminders,
 } = require("../controllers/subscriptionController");
 
 /**
@@ -28,11 +29,11 @@ function initializeScheduledTasks() {
     },
     {
       scheduled: true,
-      timezone: "America/New_York", // Adjust timezone as needed
+      timezone: "America/New_York",
     }
   );
 
-  // Alternative: Check expired subscriptions daily at midnight
+  // Check expired subscriptions daily at midnight
   cron.schedule(
     "0 0 * * *",
     async () => {
@@ -51,7 +52,30 @@ function initializeScheduledTasks() {
     },
     {
       scheduled: true,
-      timezone: "America/New_York", // Adjust timezone as needed
+      timezone: "America/New_York",
+    }
+  );
+
+  // 2-day expiry reminder emails (Subscription table only)
+  // Window used by scanner: [now+1d, now+3d)
+  cron.schedule(
+    "0 9 * * *",
+    async () => {
+      console.log(
+        "Running daily task: Send 2-day subscription expiry reminders"
+      );
+      try {
+        const result = await sendTwoDayExpiryReminders();
+        console.log(
+          `Daily reminder task completed: sent=${result.sent} skipped=${result.skipped} scanned=${result.scanned}`
+        );
+      } catch (error) {
+        console.error("Error in daily task - send expiry reminders:", error);
+      }
+    },
+    {
+      scheduled: true,
+      timezone: "America/New_York",
     }
   );
 

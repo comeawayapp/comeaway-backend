@@ -5,6 +5,7 @@
   "scripts": {
     "test": "node --test --test-concurrency=1 tests/**/*.test.js",
     "test:entitlements": "node --test --test-concurrency=1 tests/entitlements/**/*.test.js",
+    "test:subscriptions": "node --test --test-concurrency=1 tests/subscriptions/**/*.test.js",
     "dev": "nodemon server.js"
   },
   "author": "",

@@ -9,6 +9,25 @@ router.post("/create", authMiddleware, subscriptionController.createSubscription
 // Get current user's subscription
 router.get("/my", authMiddleware, subscriptionController.getMySubscription);
 
+// Detailed subscription fields for the authenticated user
+router.get(
+  "/me/details",
+  authMiddleware,
+  subscriptionController.getMySubscriptionDetails
+);
+
+// Preference updates (cancellation reason + 2-day reminder opt-in)
+router.put(
+  "/me/preferences",
+  authMiddleware,
+  subscriptionController.updateMySubscriptionPreferences
+);
+router.post(
+  "/me/preferences",
+  authMiddleware,
+  subscriptionController.updateMySubscriptionPreferences
+);
+
 // Cancel subscription
 router.delete("/:subscriptionId/cancel", authMiddleware, subscriptionController.cancelSubscription);
 
@@ -25,6 +44,11 @@ router.get("/my-subscription", authMiddleware, subscriptionController.getMySubsc
 
 // Admin routes
 router.post("/admin/check-expired", authMiddleware, subscriptionController.checkExpiredSubscriptions);
+router.post(
+  "/admin/send-expiry-reminders",
+  authMiddleware,
+  subscriptionController.sendTwoDayExpiryReminders
+);
 router.post("/admin/create-subscription-for-user", authMiddleware, subscriptionController.createSubscriptionForUser);
 
 module.exports = router;

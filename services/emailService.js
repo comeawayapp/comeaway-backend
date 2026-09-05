@@ -465,6 +465,72 @@ The Comeaway Team
   }
 
   /**
+   * Remind user their Pro subscription period ends in ~2 days
+   * @param {string} email
+   * @param {string} firstName
+   * @param {Date|string} endDate
+   * @param {string} plan - monthly | annual | daily | pro
+   */
+  async sendSubscriptionExpiryReminder(email, firstName, endDate, plan) {
+    const formattedDate = new Date(endDate).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    const planLabel =
+      plan && typeof plan === "string"
+        ? plan.charAt(0).toUpperCase() + plan.slice(1)
+        : "Pro";
+
+    const subject = "Your ComeAway Pro subscription expires in 2 days";
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Subscription Expiring Soon</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+            .container { background: white; padding: 40px; border-radius: 8px; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #5ad2fe; padding-bottom: 20px; }
+            .header h1 { margin: 0; color: #333; font-size: 24px; }
+            .plan-details { background: #f8f9fa; border-left: 4px solid #5ad2fe; padding: 20px; border-radius: 4px; margin: 20px 0; }
+            .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>Your Pro access is ending soon</h1>
+            </div>
+            <p>Hello ${firstName},</p>
+            <p>This is a reminder that your ComeAway Pro subscription is scheduled to expire in about 2 days.</p>
+            <div class="plan-details">
+              <h3 style="margin-top: 0; color: #333;">Subscription Details:</h3>
+              <ul>
+                <li><strong>Plan:</strong> ${planLabel}</li>
+                <li><strong>Expires:</strong> ${formattedDate}</li>
+              </ul>
+            </div>
+            <p>Open the ComeAway app to renew or manage your subscription so you don’t lose access to Pro content.</p>
+            <div class="footer">
+              <p>Best regards,<br>The ComeAway Team</p>
+              <p>This is an automated email. Please do not reply to this message.</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    return this.sendEmail({
+      to: email,
+      subject,
+      html,
+    });
+  }
+
+  /**
    * Send activation code email
    * @param {string} email - Recipient email
    * @param {string} customerName - Customer name

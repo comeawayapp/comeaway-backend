@@ -4,6 +4,28 @@ const Entitlement = require("../models/Entitlement");
 const stripeService = require("../services/stripeService");
 const emailService = require("../services/emailService");
 const { checkAndUpdateProStatus } = require("./user/helpers");
+const { resolveSubscriptionPrice } = require("../utils/subscriptionPrice");
+const {
+  getTwoDayReminderWindow,
+  getPeriodEnd,
+  sameInstant,
+} = require("../utils/subscriptionReminder");
+
+/** Prefer active/trialing; else most recent by period end */
+async function findLatestSubscriptionForUser(userId) {
+  const active = await Subscription.findOne({
+    userId,
+    status: { $in: ["active", "trialing"] },
+  }).sort({ currentPeriodEnd: -1, endDate: -1, updatedAt: -1 });
+
+  if (active) return active;
+
+  return Subscription.findOne({ userId }).sort({
+    currentPeriodEnd: -1,
+    endDate: -1,
+    updatedAt: -1,
+  });
+}
 
 // Create a new subscription using Stripe
 exports.createSubscription = async (req, res) => {
@@ -607,5 +629,241 @@ exports.getMySubscription = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+/**
+ * GET /api/subscription/me/details
+ * Authenticated user's subscription: plan, price (best-effort), start/end dates.
+ */
+exports.getMySubscriptionDetails = async (req, res) => {
+  try {
+    const userId = req.user && req.user._id;
+    if (!userId) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    const subscription = await findLatestSubscriptionForUser(userId);
+    if (!subscription) {
+      return res.status(404).json({
+        message: "No subscription found for this user",
+        code: "SUBSCRIPTION_NOT_FOUND",
+      });
+    }
+
+    const startDate =
+      subscription.currentPeriodStart || subscription.startDate || null;
+    const endDate = getPeriodEnd(subscription);
+    const pricing = await resolveSubscriptionPrice(subscription);
+
+    return res.status(200).json({
+      plan: subscription.plan || null,
+      price: pricing.price,
+      price_cents: pricing.price_cents,
+      currency: pricing.currency,
+      start_date: startDate,
+      end_date: endDate,
+      status: subscription.status,
+      cancel_at_period_end: !!subscription.cancelAtPeriodEnd,
+      cancellation_reason: subscription.cancellationReason || null,
+      allow_2_days_reminder: subscription.allowTwoDayReminder !== false,
+      subscription_id: subscription._id,
+    });
+  } catch (error) {
+    console.error("getMySubscriptionDetails error:", error);
+    return res
+      .status(500)
+      .json({ message: "Server error", error: error.message });
+  }
+};
+
+/**
+ * PUT|POST /api/subscription/me/preferences
+ * Stores cancellation_reason and/or allow_2_days_reminder on the user's subscription.
+ * Does not cancel Stripe.
+ */
+exports.updateMySubscriptionPreferences = async (req, res) => {
+  try {
+    const userId = req.user && req.user._id;
+    if (!userId) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    const { cancellation_reason, allow_2_days_reminder } = req.body || {};
+    const hasReason = Object.prototype.hasOwnProperty.call(
+      req.body || {},
+      "cancellation_reason"
+    );
+    const hasReminder = Object.prototype.hasOwnProperty.call(
+      req.body || {},
+      "allow_2_days_reminder"
+    );
+
+    if (!hasReason && !hasReminder) {
+      return res.status(400).json({
+        message:
+          "Provide cancellation_reason and/or allow_2_days_reminder",
+      });
+    }
+
+    if (hasReminder && typeof allow_2_days_reminder !== "boolean") {
+      return res.status(400).json({
+        message: "allow_2_days_reminder must be a boolean",
+      });
+    }
+
+    if (
+      hasReason &&
+      cancellation_reason != null &&
+      typeof cancellation_reason !== "string"
+    ) {
+      return res.status(400).json({
+        message: "cancellation_reason must be a string or null",
+      });
+    }
+
+    const subscription = await findLatestSubscriptionForUser(userId);
+    if (!subscription) {
+      return res.status(404).json({
+        message: "No subscription found for this user",
+        code: "SUBSCRIPTION_NOT_FOUND",
+      });
+    }
+
+    const previousCancelAtPeriodEnd = subscription.cancelAtPeriodEnd;
+    const previousStatus = subscription.status;
+
+    if (hasReason) {
+      subscription.cancellationReason =
+        cancellation_reason == null || cancellation_reason === ""
+          ? null
+          : String(cancellation_reason).trim();
+    }
+    if (hasReminder) {
+      subscription.allowTwoDayReminder = allow_2_days_reminder;
+    }
+
+    await subscription.save();
+
+    return res.status(200).json({
+      message: "Subscription preferences updated",
+      subscription_id: subscription._id,
+      cancellation_reason: subscription.cancellationReason || null,
+      allow_2_days_reminder: subscription.allowTwoDayReminder !== false,
+      cancel_at_period_end: !!subscription.cancelAtPeriodEnd,
+      status: subscription.status,
+      unchanged_cancel_state:
+        previousCancelAtPeriodEnd === subscription.cancelAtPeriodEnd &&
+        previousStatus === subscription.status,
+    });
+  } catch (error) {
+    console.error("updateMySubscriptionPreferences error:", error);
+    return res
+      .status(500)
+      .json({ message: "Server error", error: error.message });
+  }
+};
+
+/**
+ * Scan Subscription table for period ends ~2 days out and email opted-in users.
+ * Window: [now+1d, now+3d). Does not query Entitlement.
+ * Usable from cron (no res) or HTTP admin trigger.
+ */
+exports.sendTwoDayExpiryReminders = async (req, res) => {
+  try {
+    const { windowStart, windowEnd } = getTwoDayReminderWindow(new Date());
+
+    const candidates = await Subscription.find({
+      allowTwoDayReminder: true,
+      status: { $in: ["active", "trialing"] },
+      $or: [
+        {
+          currentPeriodEnd: { $gte: windowStart, $lt: windowEnd },
+        },
+        {
+          $and: [
+            {
+              $or: [
+                { currentPeriodEnd: null },
+                { currentPeriodEnd: { $exists: false } },
+              ],
+            },
+            { endDate: { $gte: windowStart, $lt: windowEnd } },
+          ],
+        },
+      ],
+    });
+
+    let sent = 0;
+    let skipped = 0;
+    const errors = [];
+
+    for (const subscription of candidates) {
+      const periodEnd = getPeriodEnd(subscription);
+      if (!periodEnd) {
+        skipped += 1;
+        continue;
+      }
+
+      if (
+        sameInstant(subscription.expiryReminderSentForPeriodEnd, periodEnd)
+      ) {
+        skipped += 1;
+        continue;
+      }
+
+      const user = await User.findById(subscription.userId).select(
+        "email firstname"
+      );
+      if (!user || !user.email) {
+        skipped += 1;
+        continue;
+      }
+
+      try {
+        await emailService.sendSubscriptionExpiryReminder(
+          user.email,
+          user.firstname || "there",
+          periodEnd,
+          subscription.plan || "pro"
+        );
+        subscription.expiryReminderSentForPeriodEnd = periodEnd;
+        await subscription.save();
+        sent += 1;
+      } catch (err) {
+        errors.push({
+          subscriptionId: subscription._id,
+          error: err.message,
+        });
+        console.error(
+          "sendTwoDayExpiryReminders email failed:",
+          subscription._id,
+          err
+        );
+      }
+    }
+
+    const result = {
+      message: `Sent ${sent} expiry reminder(s)`,
+      sent,
+      skipped,
+      scanned: candidates.length,
+      window_start: windowStart.toISOString(),
+      window_end: windowEnd.toISOString(),
+      errors,
+    };
+
+    if (res) {
+      return res.status(200).json(result);
+    }
+    return result;
+  } catch (error) {
+    console.error("sendTwoDayExpiryReminders error:", error);
+    if (res) {
+      return res
+        .status(500)
+        .json({ message: "Server error", error: error.message });
+    }
+    throw error;
   }
 };

@@ -44,17 +44,24 @@ const SubscriptionSchema = new mongoose.Schema({
         type: String, 
         enum: ['create_prorations', 'none', 'always_invoice'],
         default: 'create_prorations'
-    }
+    },
+
+    // Preference / reminder fields (app-managed; not from Stripe)
+    cancellationReason: { type: String, required: false, default: null },
+    allowTwoDayReminder: { type: Boolean, default: true },
+    // Dedupes 2-day expiry emails for the same billing period end
+    expiryReminderSentForPeriodEnd: { type: Date, required: false, default: null },
 }, {
     timestamps: true
 });
 
 // Indexes for better performance
 SubscriptionSchema.index({ userId: 1 });
-SubscriptionSchema.index({ stripeSubscriptionId: 1 });
 SubscriptionSchema.index({ stripeCustomerId: 1 });
 SubscriptionSchema.index({ status: 1 });
 SubscriptionSchema.index({ currentPeriodEnd: 1 });
+SubscriptionSchema.index({ allowTwoDayReminder: 1, currentPeriodEnd: 1 });
+SubscriptionSchema.index({ allowTwoDayReminder: 1, endDate: 1 });
 
 // Virtual for checking if subscription is active
 SubscriptionSchema.virtual('isActive').get(function() {
