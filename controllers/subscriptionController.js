@@ -678,7 +678,7 @@ exports.getMySubscriptionDetails = async (req, res) => {
 };
 
 /**
- * PUT|POST /api/subscription/me/preferences
+ * PUT /api/subscription/me/preferences
  * Stores cancellation_reason and/or allow_2_days_reminder on the user's subscription.
  * Does not cancel Stripe.
  */
@@ -767,7 +767,7 @@ exports.updateMySubscriptionPreferences = async (req, res) => {
 /**
  * Scan Subscription table for period ends ~2 days out and email opted-in users.
  * Window: [now+1d, now+3d). Does not query Entitlement.
- * Usable from cron (no res) or HTTP admin trigger.
+ * Invoked by the daily cron (not exposed as an HTTP route).
  */
 exports.sendTwoDayExpiryReminders = async (req, res) => {
   try {

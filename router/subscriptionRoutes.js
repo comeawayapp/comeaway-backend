@@ -22,11 +22,6 @@ router.put(
   authMiddleware,
   subscriptionController.updateMySubscriptionPreferences
 );
-router.post(
-  "/me/preferences",
-  authMiddleware,
-  subscriptionController.updateMySubscriptionPreferences
-);
 
 // Cancel subscription
 router.delete("/:subscriptionId/cancel", authMiddleware, subscriptionController.cancelSubscription);
@@ -44,11 +39,6 @@ router.get("/my-subscription", authMiddleware, subscriptionController.getMySubsc
 
 // Admin routes
 router.post("/admin/check-expired", authMiddleware, subscriptionController.checkExpiredSubscriptions);
-router.post(
-  "/admin/send-expiry-reminders",
-  authMiddleware,
-  subscriptionController.sendTwoDayExpiryReminders
-);
 router.post("/admin/create-subscription-for-user", authMiddleware, subscriptionController.createSubscriptionForUser);
 
 module.exports = router;

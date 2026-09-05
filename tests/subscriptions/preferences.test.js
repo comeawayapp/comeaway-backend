@@ -12,7 +12,7 @@ const {
   authHeader,
 } = require("./setup");
 
-describe("PUT|POST /api/subscription/me/preferences", () => {
+describe("PUT /api/subscription/me/preferences", () => {
   before(async () => {
     await startTestEnv();
   });
@@ -74,12 +74,12 @@ describe("PUT|POST /api/subscription/me/preferences", () => {
     assert.equal(refreshed.status, "active");
   });
 
-  it("POST also updates preferences", async () => {
+  it("updates preferences with PUT", async () => {
     const user = await createUser();
     await createSubscription(user._id);
 
     const res = await request(getApp())
-      .post("/api/subscription/me/preferences")
+      .put("/api/subscription/me/preferences")
       .set("Authorization", authHeader(user))
       .send({ cancellation_reason: "Switching plans" });
 
