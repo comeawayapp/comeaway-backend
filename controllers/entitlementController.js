@@ -109,6 +109,9 @@ exports.createEntitlement = async (req, res) => {
 };
 
 // Admin: List/search entitlements
+const ENTITLEMENT_SORT_FIELDS = new Set(["createdAt", "expiryDate"]);
+const ENTITLEMENT_SORT_ORDERS = new Set(["asc", "desc"]);
+
 exports.listEntitlements = async (req, res) => {
   try {
     const {
@@ -118,10 +121,26 @@ exports.listEntitlements = async (req, res) => {
       assignedTo,     // Search by Assigned To
       platform,        // platform: All ▼
       redeemed,        // redeemed: All ▼
+      sortBy,
+      sortOrder,
       ...otherFilters
     } = req.query;
 
-    // Build filter object
+    const sortField = sortBy || "createdAt";
+    const sortOrderRaw = (sortOrder || "desc").toLowerCase();
+
+    if (!ENTITLEMENT_SORT_FIELDS.has(sortField)) {
+      return res.status(400).json({
+        error: "Invalid sortBy. Allowed: createdAt, expiryDate",
+      });
+    }
+    if (!ENTITLEMENT_SORT_ORDERS.has(sortOrderRaw)) {
+      return res.status(400).json({
+        error: "Invalid sortOrder. Allowed: asc, desc",
+      });
+    }
+
+    // Build filter object (sort params excluded so they never become Mongo filters)
     const filter = { ...otherFilters };
 
     // Helper function to escape regex special characters
@@ -152,7 +171,10 @@ exports.listEntitlements = async (req, res) => {
       filter.redeemed = redeemed === 'true' || redeemed === true;
     }
 
-    const entitlements = await Entitlement.find(filter);
+    const sortDir = sortOrderRaw === "asc" ? 1 : -1;
+    const entitlements = await Entitlement.find(filter).sort({
+      [sortField]: sortDir,
+    });
     res.json(entitlements);
   } catch (err) {
     res.status(500).json({ error: err.message });

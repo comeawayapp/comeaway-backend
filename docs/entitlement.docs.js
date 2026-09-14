@@ -183,15 +183,36 @@
  *           type: string
  *         description: Filter by redemption status (exact match, use "All" to show all)
  *         example: "false"
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [createdAt, expiryDate]
+ *           default: createdAt
+ *         description: |
+ *           Field to sort by. Defaults to createdAt (newest first when paired with
+ *           default sortOrder=desc). Each entitlement includes createdAt for a
+ *           Created at column after entitlementId in the admin UI.
+ *         example: createdAt
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *         description: Sort direction. Defaults to desc (newest / latest first).
+ *         example: desc
  *     responses:
  *       200:
- *         description: Entitlements retrieved successfully
+ *         description: Entitlements retrieved successfully (includes createdAt on each row)
  *         content:
  *           application/json:
  *             schema:
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Entitlement'
+ *       400:
+ *         description: Invalid sortBy or sortOrder
  *       401:
  *         description: Unauthorized
  *       500:
