@@ -44,6 +44,14 @@
  *         duration:
  *           type: number
  *           description: Duration in seconds
+ *         narrator:
+ *           type: string
+ *           nullable: true
+ *           description: Narrator ObjectId (populated to { _id, name, avatar, bio } on reads)
+ *         author:
+ *           type: string
+ *           nullable: true
+ *           description: Free-text author name
  *         uploadStatus:
  *           type: string
  *           enum: [uploading, completed, failed]
@@ -74,6 +82,14 @@
  *         status:
  *           type: string
  *           enum: [Standard, Premium]
+ *         narrator:
+ *           type: string
+ *           nullable: true
+ *           description: Optional Narrator ObjectId
+ *         author:
+ *           type: string
+ *           nullable: true
+ *           description: Optional free-text author
  *     
  *     UpdateSoundRequest:
  *       type: object
@@ -88,6 +104,14 @@
  *         status:
  *           type: string
  *           enum: [Standard, Premium]
+ *         narrator:
+ *           type: string
+ *           nullable: true
+ *           description: Optional Narrator ObjectId (empty/null clears)
+ *         author:
+ *           type: string
+ *           nullable: true
+ *           description: Optional free-text author (empty/null clears)
  *     
  *     SoundResponse:
  *       type: object
@@ -444,6 +468,16 @@
  *           enum: [Standard, Premium]
  *         description: Filter by status
  *       - in: query
+ *         name: narrator
+ *         schema:
+ *           type: string
+ *         description: Filter by Narrator ObjectId (exact)
+ *       - in: query
+ *         name: author
+ *         schema:
+ *           type: string
+ *         description: Filter by author (case-insensitive partial match)
+ *       - in: query
  *         name: page
  *         schema:
  *           type: integer
@@ -457,11 +491,15 @@
  *         description: Number of items per page
  *     responses:
  *       200:
- *         description: Sounds retrieved successfully
+ *         description: Sounds retrieved successfully (includes narrator and author)
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/SearchSoundsResponse'
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Sound'
+ *       400:
+ *         description: Invalid narrator id
  *       401:
  *         description: Unauthorized
  *         content:
@@ -474,6 +512,45 @@
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
+ */
+
+/**
+ * @swagger
+ * /api/sounds/by-narrator/{narratorId}:
+ *   get:
+ *     summary: List sounds for a narrator
+ *     tags: [Sounds]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: narratorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Narrator ObjectId
+ *     responses:
+ *       200:
+ *         description: Narrator profile and their sounds
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 narrator:
+ *                   type: object
+ *                 sounds:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Sound'
+ *       400:
+ *         description: Invalid narrator id
+ *       404:
+ *         description: Narrator not found
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
  */
 
 /**

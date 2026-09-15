@@ -1,4 +1,5 @@
 const Sound = require("../models/sound");
+const Narrator = require("../models/Narrator");
 const path = require("path");
 const playedSound = require("../models/playedSound");
 const { parseFile } = require("music-metadata");
@@ -6,6 +7,7 @@ const logger = require("../utils/logger");
 const spacesService = require("../services/spacesService");
 const fs = require("fs"); // Added for local file cleanup
 const mime = require("mime-types"); // Fixed: changed from 'mime-type' to 'mime-types'
+const mongoose = require("mongoose");
 
 // Helper function to validate URLs
 const isValidUrl = (string) => {
@@ -17,9 +19,65 @@ const isValidUrl = (string) => {
   }
 };
 
+/**
+ * Resolve optional narrator id for create/update.
+ * undefined = leave unchanged (update only)
+ * null/"" = clear
+ */
+async function resolveNarratorField(narrator) {
+  if (narrator === undefined) return { skip: true };
+  if (narrator === null || narrator === "" || narrator === "null") {
+    return { value: null };
+  }
+  const id = String(narrator).trim();
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    const err = new Error("Invalid narrator id");
+    err.status = 400;
+    throw err;
+  }
+  const exists = await Narrator.findById(id);
+  if (!exists) {
+    const err = new Error("Narrator not found");
+    err.status = 400;
+    throw err;
+  }
+  return { value: id };
+}
 
+function resolveAuthorField(author) {
+  if (author === undefined) return { skip: true };
+  if (author === null || author === "") return { value: null };
+  const trimmed = String(author).trim();
+  return { value: trimmed || null };
+}
 
-// The actual controller function (without multer handling)
+function mapSoundResponse(sound) {
+  const narrator = sound.narrator;
+  return {
+    _id: sound._id,
+    title: sound.title,
+    description: sound.description,
+    soundFile: sound.soundFile,
+    thumbnail: sound.thumbnail,
+    categories: sound.categories,
+    status: sound.status,
+    playCount: sound.playCount,
+    addedDate: sound.addedDate,
+    duration: sound.duration,
+    narrator:
+      narrator && typeof narrator === "object" && narrator._id
+        ? {
+            _id: narrator._id,
+            name: narrator.name,
+            avatar: narrator.avatar,
+            bio: narrator.bio,
+          }
+        : narrator || null,
+    author: sound.author || null,
+    uploadStatus:
+      sound.soundFile == "pending" ? sound.uploadStatus : "completed",
+  };
+}// The actual controller function (without multer handling)
 const createSound = async (req, res) => {
   try {
     logger.info('Creating new sound', {
@@ -28,7 +86,7 @@ const createSound = async (req, res) => {
       userId: req.user ? req.user._id : null
     });
 
-    const { title, description, categories, status, thumbnail, soundFile, duration } = req.body;
+    const { title, description, categories, status, thumbnail, soundFile, duration, narrator, author } = req.body;
 
     // Validate required fields
     if (!title || !categories || !status || !thumbnail || !soundFile || !duration) {
@@ -45,6 +103,18 @@ const createSound = async (req, res) => {
         message: "title,categories, status, thumbnail, and soundFile are required",
       });
     }
+
+    let narratorId = null;
+    try {
+      const resolvedNarrator = await resolveNarratorField(narrator);
+      if (!resolvedNarrator.skip) narratorId = resolvedNarrator.value;
+    } catch (narratorErr) {
+      return res.status(narratorErr.status || 400).json({
+        message: narratorErr.message,
+      });
+    }
+    const resolvedAuthor = resolveAuthorField(author);
+    const authorValue = resolvedAuthor.skip ? null : resolvedAuthor.value;
 
     // Check for duplicate title
     const existingSound = await Sound.findOne({ title: title.trim() });
@@ -97,6 +167,8 @@ const createSound = async (req, res) => {
       thumbnail,
       categories: parsedCategories,
       status,
+      narrator: narratorId,
+      author: authorValue,
       addedDate: new Date(),
       duration,
       uploadStatus: 'completed' // Track upload status
@@ -126,22 +198,58 @@ const createSound = async (req, res) => {
 
 exports.getSounds = async (req, res) => {
   try {
-    const sounds = await Sound.find().sort({ addedDate: -1 }); // Sort from newest to oldest
-    // Always include duration in the response
-    const result = sounds.map((sound) => ({
-      _id: sound._id,
-      title: sound.title,
-      description: sound.description,
-      soundFile: sound.soundFile,
-      thumbnail: sound.thumbnail,
-      categories: sound.categories,
-      status: sound.status,
-      playCount: sound.playCount,
-      addedDate: sound.addedDate,
-      duration: sound.duration, // Ensure duration is included
-      uploadStatus: sound.soundFile == 'pending' ? sound.uploadStatus : "completed",
-    }));
+    const { narrator, author } = req.query;
+    const filter = {};
+
+    if (narrator && narrator !== "All") {
+      if (!mongoose.Types.ObjectId.isValid(String(narrator))) {
+        return res.status(400).json({ message: "Invalid narrator id" });
+      }
+      filter.narrator = narrator;
+    }
+
+    if (author && author !== "All") {
+      const escapeRegex = (string) =>
+        string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      filter.author = {
+        $regex: escapeRegex(String(author).trim()),
+        $options: "i",
+      };
+    }
+
+    const sounds = await Sound.find(filter)
+      .populate("narrator", "name avatar bio")
+      .sort({ addedDate: -1 });
+
+    const result = sounds.map(mapSoundResponse);
     res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+exports.getSoundsByNarrator = async (req, res) => {
+  try {
+    const { narratorId } = req.params;
+    if (!narratorId || !mongoose.Types.ObjectId.isValid(narratorId)) {
+      return res.status(400).json({ message: "Invalid or missing narrator id" });
+    }
+
+    const narrator = await Narrator.findById(narratorId).select(
+      "name avatar bio"
+    );
+    if (!narrator) {
+      return res.status(404).json({ message: "Narrator not found" });
+    }
+
+    const sounds = await Sound.find({ narrator: narratorId })
+      .populate("narrator", "name avatar bio")
+      .sort({ addedDate: -1 });
+
+    return res.status(200).json({
+      narrator,
+      sounds: sounds.map(mapSoundResponse),
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -153,11 +261,14 @@ exports.getSoundById = async (req, res) => {
     if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
       return res.status(400).json({ message: "Invalid or missing sound id" });
     }
-    const sound = await Sound.findById(id);
+    const sound = await Sound.findById(id).populate(
+      "narrator",
+      "name avatar bio"
+    );
     if (!sound) {
       return res.status(404).json({ message: "Sound not found" });
     }
-    res.status(200).json(sound);
+    res.status(200).json(mapSoundResponse(sound));
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -165,7 +276,7 @@ exports.getSoundById = async (req, res) => {
 
 exports.updateSound = async (req, res) => {
   try {
-    const { title, description, categories, status, soundFile, thumbnail } = req.body;
+    const { title, description, categories, status, soundFile, thumbnail, narrator, author } = req.body;
     const { id } = req.params;
     
     logger.info('UpdateSound request received', { 
@@ -221,6 +332,22 @@ exports.updateSound = async (req, res) => {
       }
     }
 
+    try {
+      const resolvedNarrator = await resolveNarratorField(narrator);
+      if (!resolvedNarrator.skip) {
+        sound.narrator = resolvedNarrator.value;
+      }
+    } catch (narratorErr) {
+      return res.status(narratorErr.status || 400).json({
+        message: narratorErr.message,
+      });
+    }
+
+    const resolvedAuthor = resolveAuthorField(author);
+    if (!resolvedAuthor.skip) {
+      sound.author = resolvedAuthor.value;
+    }
+
     // Update sound details
     sound.title = title || sound.title;
     sound.description = description || sound.description;
@@ -245,17 +372,10 @@ exports.updateSound = async (req, res) => {
     });
 
     await sound.save();
+    await sound.populate("narrator", "name avatar bio");
     res.status(200).json({ 
       message: "Sound updated successfully",
-      sound: {
-        _id: sound._id,
-        title: sound.title,
-        description: sound.description,
-        soundFile: sound.soundFile,
-        thumbnail: sound.thumbnail,
-        categories: sound.categories,
-        status: sound.status
-      }
+      sound: mapSoundResponse(sound),
     });
 
   } catch (error) {

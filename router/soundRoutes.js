@@ -36,6 +36,12 @@ router.get(
   checkProStatus,
   soundController.getSounds
 );
+router.get(
+  "/by-narrator/:narratorId",
+  authMiddleware,
+  checkProStatus,
+  soundController.getSoundsByNarrator
+);
 router.get("/getSingleSound/:id", authMiddleware, soundController.getSoundById);
 router.get("/upload-status/:id", authMiddleware, soundController.getUploadStatus);
 router.get(
