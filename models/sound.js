@@ -11,8 +11,8 @@ const SoundSchema = new mongoose.Schema({
   addedDate: { type: Date, default: Date.now },
   duration: { type: Number }, // duration in seconds
   narrator: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Narrator",
+    type: String,
+    trim: true,
     default: null,
   },
   author: {

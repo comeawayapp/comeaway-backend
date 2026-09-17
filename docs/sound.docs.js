@@ -47,7 +47,7 @@
  *         narrator:
  *           type: string
  *           nullable: true
- *           description: Narrator ObjectId (populated to { _id, name, avatar, bio } on reads)
+ *           description: Optional free-text narrator name
  *         author:
  *           type: string
  *           nullable: true
@@ -85,7 +85,7 @@
  *         narrator:
  *           type: string
  *           nullable: true
- *           description: Optional Narrator ObjectId
+ *           description: Optional free-text narrator name
  *         author:
  *           type: string
  *           nullable: true
@@ -107,7 +107,7 @@
  *         narrator:
  *           type: string
  *           nullable: true
- *           description: Optional Narrator ObjectId (empty/null clears)
+ *           description: Optional free-text narrator name (empty/null clears)
  *         author:
  *           type: string
  *           nullable: true
@@ -471,7 +471,7 @@
  *         name: narrator
  *         schema:
  *           type: string
- *         description: Filter by Narrator ObjectId (exact)
+ *         description: Filter by narrator name (case-insensitive partial match)
  *       - in: query
  *         name: author
  *         schema:
@@ -498,8 +498,6 @@
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Sound'
- *       400:
- *         description: Invalid narrator id
  *       401:
  *         description: Unauthorized
  *         content:
@@ -516,22 +514,22 @@
 
 /**
  * @swagger
- * /api/sounds/by-narrator/{narratorId}:
+ * /api/sounds/by-narrator/{narratorName}:
  *   get:
- *     summary: List sounds for a narrator
+ *     summary: List sounds for a narrator name
  *     tags: [Sounds]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: narratorId
+ *         name: narratorName
  *         required: true
  *         schema:
  *           type: string
- *         description: Narrator ObjectId
+ *         description: Narrator name (case-insensitive exact match; URL-encoded)
  *     responses:
  *       200:
- *         description: Narrator profile and their sounds
+ *         description: Narrator name and matching sounds
  *         content:
  *           application/json:
  *             schema:
@@ -539,14 +537,15 @@
  *               properties:
  *                 narrator:
  *                   type: object
+ *                   properties:
+ *                     name:
+ *                       type: string
  *                 sounds:
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/Sound'
  *       400:
- *         description: Invalid narrator id
- *       404:
- *         description: Narrator not found
+ *         description: Narrator name is required
  *       401:
  *         description: Unauthorized
  *       500:

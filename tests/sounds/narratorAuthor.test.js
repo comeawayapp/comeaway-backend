@@ -15,15 +15,12 @@ const request = require("supertest");
 const { MongoMemoryServer } = require("mongodb-memory-server");
 const User = require("../../models/user");
 const Sound = require("../../models/sound");
-const Narrator = require("../../models/Narrator");
 const Category = require("../../models/catagories");
 
 let mongo;
 let app;
 let staffUser;
 let category;
-let narratorA;
-let narratorB;
 
 function createApp() {
   const application = express();
@@ -71,9 +68,6 @@ describe("Sound narrator + author", () => {
       slug: `cat-${Date.now()}`,
       description: "test",
     });
-
-    narratorA = await Narrator.create({ name: "Alice Voice" });
-    narratorB = await Narrator.create({ name: "Bob Voice" });
   });
 
   after(async () => {
@@ -91,25 +85,26 @@ describe("Sound narrator + author", () => {
       .set("Authorization", authHeader(staffUser))
       .send(
         baseSoundPayload({
-          narrator: narratorA._id.toString(),
+          narrator: "Alice Voice",
           author: "Jane Author",
         })
       );
 
     assert.equal(res.status, 201);
     const saved = await Sound.findById(res.body.soundId);
-    assert.equal(String(saved.narrator), String(narratorA._id));
+    assert.equal(saved.narrator, "Alice Voice");
     assert.equal(saved.author, "Jane Author");
   });
 
-  it("rejects invalid narrator id on create", async () => {
+  it("allows empty/optional narrator on create", async () => {
     const res = await request(app)
       .post("/api/sounds/add-sounds")
       .set("Authorization", authHeader(staffUser))
-      .send(baseSoundPayload({ narrator: "not-an-objectid" }));
+      .send(baseSoundPayload({ narrator: "" }));
 
-    assert.equal(res.status, 400);
-    assert.match(res.body.message, /Invalid narrator/i);
+    assert.equal(res.status, 201);
+    const saved = await Sound.findById(res.body.soundId);
+    assert.equal(saved.narrator, null);
   });
 
   it("filters getSounds by narrator and author", async () => {
@@ -120,7 +115,7 @@ describe("Sound narrator + author", () => {
       thumbnail: "https://example.com/t.jpg",
       soundFile: "https://example.com/s.mp3",
       duration: 10,
-      narrator: narratorA._id,
+      narrator: "Alice Voice",
       author: "Alpha Writer",
       uploadStatus: "completed",
     });
@@ -131,20 +126,20 @@ describe("Sound narrator + author", () => {
       thumbnail: "https://example.com/t.jpg",
       soundFile: "https://example.com/s.mp3",
       duration: 10,
-      narrator: narratorB._id,
+      narrator: "Bob Voice",
       author: "Beta Writer",
       uploadStatus: "completed",
     });
 
     const byNarrator = await request(app)
       .get("/api/sounds/getSounds")
-      .query({ narrator: narratorA._id.toString() })
+      .query({ narrator: "alice" })
       .set("Authorization", authHeader(staffUser));
 
     assert.equal(byNarrator.status, 200);
     assert.equal(byNarrator.body.length, 1);
     assert.equal(byNarrator.body[0].title, "A1");
-    assert.equal(byNarrator.body[0].narrator.name, "Alice Voice");
+    assert.equal(byNarrator.body[0].narrator, "Alice Voice");
 
     const byAuthor = await request(app)
       .get("/api/sounds/getSounds")
@@ -156,7 +151,7 @@ describe("Sound narrator + author", () => {
     assert.equal(byAuthor.body[0].title, "B1");
   });
 
-  it("lists sounds by narrator id", async () => {
+  it("lists sounds by narrator name", async () => {
     await Sound.create({
       title: "Narrator Track",
       categories: [category._id],
@@ -164,13 +159,13 @@ describe("Sound narrator + author", () => {
       thumbnail: "https://example.com/t.jpg",
       soundFile: "https://example.com/s.mp3",
       duration: 10,
-      narrator: narratorA._id,
+      narrator: "Alice Voice",
       author: "Someone",
       uploadStatus: "completed",
     });
 
     const res = await request(app)
-      .get(`/api/sounds/by-narrator/${narratorA._id}`)
+      .get(`/api/sounds/by-narrator/${encodeURIComponent("Alice Voice")}`)
       .set("Authorization", authHeader(staffUser));
 
     assert.equal(res.status, 200);

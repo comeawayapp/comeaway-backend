@@ -37,7 +37,7 @@ router.get(
   soundController.getSounds
 );
 router.get(
-  "/by-narrator/:narratorId",
+  "/by-narrator/:narratorName",
   authMiddleware,
   checkProStatus,
   soundController.getSoundsByNarrator
