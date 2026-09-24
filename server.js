@@ -99,6 +99,8 @@ app.use("/api/auth", require("./router/authroute"));
 app.use("/api/team", require("./router/teamRoutes"));
 app.use("/api/categories", require("./router/catagoryRoutes"));
 app.use("/api/sounds", require("./router/soundRoutes"));
+app.use("/api/mixes", require("./router/mixRoutes"));
+app.use("/api/mix-categories", require("./router/mixCategoryRoutes"));
 app.use("/api/subscription", require("./router/subscriptionRoutes"));
 app.use("/api/favorites", require("./router/favoriteSoundRoutes"));
 app.use("/api/playlists", require("./router/playlistRoutes"));
