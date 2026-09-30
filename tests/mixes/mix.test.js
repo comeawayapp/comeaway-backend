@@ -138,6 +138,54 @@ describe("Mix + MixCategory", () => {
     assert.equal(res.body.mixes[0].title, "Arctic wind");
   });
 
+  it("returns all categories with nested mixes", async () => {
+    const otherCat = await MixCategory.create({
+      name: `Animals-${Date.now()}`,
+      slug: `animals-${Date.now()}`,
+    });
+
+    await Mix.create({
+      title: "Rain",
+      categories: [mixCategory._id],
+      status: "Standard",
+      thumbnail: "https://example.com/t.jpg",
+      soundFile: "https://example.com/s.mp3",
+      duration: 10,
+      uploadStatus: "completed",
+    });
+    await Mix.create({
+      title: "Birds",
+      categories: [otherCat._id],
+      status: "Standard",
+      thumbnail: "https://example.com/t.jpg",
+      soundFile: "https://example.com/s.mp3",
+      duration: 10,
+      uploadStatus: "completed",
+    });
+
+    const res = await request(app)
+      .get("/api/mix-categories/with-mixes")
+      .set("Authorization", authHeader(staffUser));
+
+    assert.equal(res.status, 200);
+    assert.ok(Array.isArray(res.body));
+    assert.equal(res.body.length, 2);
+
+    const nature = res.body.find(
+      (row) => String(row.category._id) === String(mixCategory._id)
+    );
+    const animals = res.body.find(
+      (row) => String(row.category._id) === String(otherCat._id)
+    );
+
+    assert.ok(nature);
+    assert.equal(nature.count, 1);
+    assert.equal(nature.mixes[0].title, "Rain");
+    assert.ok(animals);
+    assert.equal(animals.count, 1);
+    assert.equal(animals.mixes[0].title, "Birds");
+  });
+
   it("updates and deletes a mix", async () => {
     const mix = await Mix.create({
       title: "Ocean",

@@ -107,6 +107,36 @@
 
 /**
  * @swagger
+ * /api/mix-categories/with-mixes:
+ *   get:
+ *     summary: List all mix categories with their mixes nested
+ *     tags: [MixCategories]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Categories with nested mixes (for mobile accordion)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   category:
+ *                     $ref: '#/components/schemas/MixCategory'
+ *                   mixes:
+ *                     type: array
+ *                     items:
+ *                       $ref: '#/components/schemas/Mix'
+ *                   count:
+ *                     type: integer
+ *       401:
+ *         description: Unauthorized
+ */
+
+/**
+ * @swagger
  * /api/mix-categories/{id}:
  *   get:
  *     summary: Get a mix category by ID

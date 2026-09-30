@@ -104,6 +104,47 @@ exports.getMixCategoryWithMixes = async (req, res) => {
   }
 };
 
+/**
+ * All mix categories with their mixes nested (mobile accordion).
+ * GET /api/mix-categories/with-mixes
+ */
+exports.getAllMixCategoriesWithMixes = async (req, res) => {
+  try {
+    const categories = await MixCategory.find().sort({ publishedDate: -1 });
+    const mixes = await Mix.find().sort({ addedDate: -1 });
+
+    const mappedMixes = mixes.map(mapMixResponse);
+    const byCategory = new Map();
+
+    for (const category of categories) {
+      byCategory.set(String(category._id), []);
+    }
+
+    for (const mix of mappedMixes) {
+      const catIds = Array.isArray(mix.categories) ? mix.categories : [];
+      for (const catId of catIds) {
+        const key = String(catId);
+        if (byCategory.has(key)) {
+          byCategory.get(key).push(mix);
+        }
+      }
+    }
+
+    const result = categories.map((category) => {
+      const mixesForCat = byCategory.get(String(category._id)) || [];
+      return {
+        category,
+        mixes: mixesForCat,
+        count: mixesForCat.length,
+      };
+    });
+
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 exports.updateMixCategory = async (req, res) => {
   try {
     const { name, slug, description } = req.body;

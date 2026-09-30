@@ -16,6 +16,12 @@ router.post(
 
 router.get("/", authMiddleware, mixCategoryController.getMixCategories);
 
+router.get(
+  "/with-mixes",
+  authMiddleware,
+  mixCategoryController.getAllMixCategoriesWithMixes
+);
+
 // Nested mixes before bare :id
 router.get(
   "/:id/mixes",
